@@ -1,26 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
 @import "tailwindcss";
 
+/* Font Variables from next/font/google */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Custom color variables for light theme */
+  --color-background: #ffffff;
+  --color-foreground: #000000;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark theme overrides when `html` has class `dark` */
+html.dark {
+  --color-background: #0d0d0d;
+  --color-foreground: #f5f5f5;
 }
 
+/* Base styling for body */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply transition-colors duration-300;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Optional Dancing Script utility class */
+.font-dancing {
+  font-family: 'Dancing Script', cursive;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+#welcome {
+  scroll-margin-top: 12rem; /* Adjust based on header height */
+}
+
+#features-products {
+  scroll-margin-top: 8rem; /* Match header height */
+}
+
+#services {
+  scroll-margin-top: 5rem; /* Match header height */
 }
