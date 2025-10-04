@@ -1,6 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
 @import "tailwindcss";
 
+@theme {
+  /* Rad Dad purple */
+  --color-brand: #432389;
+
+  /* optional shades if you want them */
+  --color-brand-50:  color-mix(in oklch, #432389 10%, white);
+  --color-brand-100: color-mix(in oklch, #432389 20%, white);
+  --color-brand-200: color-mix(in oklch, #432389 30%, white);
+  --color-brand-300: color-mix(in oklch, #432389 40%, white);
+  --color-brand-400: color-mix(in oklch, #432389 55%, white);
+  --color-brand-450: color-mix(in oklch, #432389 75%, white); /* midway blend */
+  --color-brand-500: #432389; /* base */
+  --color-brand-600: color-mix(in oklch, #432389 85%, black);
+  --color-brand-700: color-mix(in oklch, #432389 92%, black);
+}
+
 /* Font Variables from next/font/google */
 :root {
   --font-sans: var(--font-geist-sans);

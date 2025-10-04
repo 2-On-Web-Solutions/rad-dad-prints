@@ -2,36 +2,73 @@
 
 import { useEffect, useState } from 'react'
 import { FaBars } from 'react-icons/fa'
+import Image from 'next/image'
 import ThemeToggle from './ThemeToggle'
 
-export default function Header({ onContact }: { onContact: () => void }) {
+type HeaderProps = { onContact?: () => void }
+
+export default function Header({ onContact }: HeaderProps) {
   const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     history.replaceState(null, '', '/')
   }
 
-  if (!mounted) return null
-
   return (
-    <header className="fixed top-0 left-0 w-full bg-neutral-800 text-white py-4 px-4 sm:py-6 sm:px-8 lg:px-16 z-50 shadow-md">
-      <nav className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center w-full gap-4 sm:gap-10">
+    <header className="fixed top-0 left-0 w-full bg-neutral-800 text-white py-4 px-4 sm:py-6 sm:px-8 lg:px-16 z-50 shadow-md overflow-visible">
+      {/* Make the header a positioning context so the logo can float without shifting layout */}
+      <div
+        className="relative max-w-7xl mx-auto"
+        // 👇 Tweak these 3 variables to move/resize the logo freely
+        style={
+          {
+            // how far from the left edge (can be negative to overhang)
+            // examples: '-10px', '-1.5rem', '0', '20px'
+            ['--logo-left' as any]: '-300px',
 
-        {/* Top row: Logo + Hamburger */}
-        <div className="w-full flex justify-between items-center">
-          <div
-            onClick={scrollToTop}
-            className="text-2xl sm:text-3xl lg:text-[1.65rem] xl:text-4xl font-dancing tracking-wide cursor-pointer text-center sm:text-left lg:ml-4 xl:ml-8 2xl:-ml-70 text-purple-700"
-          >
-            Rad Dad Prints
-          </div>
+            // vertical position; percentage of header height (50% centers vertically)
+            // examples: '50%', '55%', '40%'
+            ['--logo-top' as any]: '225%',
 
+            // overall width; height auto-scales to keep aspect ratio
+            // examples: '240px', '280px', '320px'
+            ['--logo-width' as any]: '300px',
+          } as React.CSSProperties
+        }
+      >
+        {/* ⭐ Floating logo (absolute) — does NOT affect layout */}
+        <button
+          onClick={scrollToTop}
+          aria-label="Go to top"
+          className="
+            absolute z-50 select-none
+            -translate-y-1/2
+          "
+          style={{
+            left: 'var(--logo-left)',
+            top: 'var(--logo-top)',
+            lineHeight: 0,
+          }}
+        >
+          <Image
+            src="/assets/rad-dad-prints.png"
+            alt="Rad Dad Prints Logo"
+            width={300}
+            height={200}
+            // Use CSS width so you can resize via --logo-width
+            style={{ width: 'var(--logo-width)', height: 'auto' }}
+            priority
+            className="object-contain drop-shadow-lg pointer-events-none"
+          />
+        </button>
+
+        {/* Your original nav – unchanged */}
+        <nav className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center w-full gap-4 sm:gap-10 relative">
           {/* Hamburger toggle button (below lg only) */}
           <button
             className="lg:hidden text-2xl focus:outline-none"
@@ -40,29 +77,48 @@ export default function Header({ onContact }: { onContact: () => void }) {
           >
             <FaBars />
           </button>
-        </div>
 
-        {/* Nav Links */}
-        <ul
-          className={`flex-col lg:flex-row gap-4 lg:gap-10 xl:gap-20 2xl:gap-40 2xl:mr-55 2xl:text-lg text-center text-base font-semibold tracking-wide transition-all duration-300 ${
-            isOpen ? 'flex' : 'hidden'
-          } lg:flex`}
-        >
-          <li><a href="#welcome" className="hover:text-purple-700 transition py-1">PrintDesigns</a></li>
-          <li><a href="#features-products" className="hover:text-purple-700 transition py-1 whitespace-nowrap">Bundles & Packages</a></li>
-          <li><a href="#services" className="hover:text-purple-700 transition py-1">Services</a></li>
-          <li><a href="#gallery" className="hover:text-purple-700 transition py-1">Gallery</a></li>
-        </ul>
+          {/* Nav Links */}
+          <ul
+            className={`flex-col lg:flex-row gap-4 lg:gap-10 xl:gap-20 2xl:gap-40 
+                        text-center text-lg font-semibold tracking-wide transition-all duration-300
+                        ${isOpen ? 'flex' : 'hidden'} lg:flex 
+                        lg:mx-auto`}  // 👈 centers the group horizontally
+          >
+            <li>
+              <a href="#print-designs" className="hover:text-brand-450 transition py-1 whitespace-nowrap">
+                Print Designs
+              </a>
+            </li>
+            <li>
+              <a href="#bundles-packages" className="hover:text-brand-450 transition py-1 whitespace-nowrap">
+                Bundles & Packages
+              </a>
+            </li>
+            <li>
+              <a href="#services" className="hover:text-brand-450 transition py-1">
+                Services
+              </a>
+            </li>
+            <li>
+              <a href="#gallery" className="hover:text-brand-450 transition py-1">
+                Gallery
+              </a>
+            </li>
+          </ul>
 
-        {/* Right side: Theme + Contact */}
-        <div className="flex gap-4 justify-center sm:justify-end items-center mt-2 sm:mt-0 lg:mr-4 xl:mr-8 2xl:-mr-70">
-          <ThemeToggle />
-          <div className="animated-link-wrapper">
-            <div className="animated-link-effect-2"><div></div></div>
-            <button onClick={onContact} className="animated-link-2 text-sm sm:text-base">Contact</button>
+          {/* Right side: Theme + Contact */}
+          <div className="flex gap-4 justify-center sm:justify-end items-center mt-2 sm:mt-0 lg:mr-4 xl:mr-8 2xl:-mr-70">
+            <ThemeToggle />
+            <div className="animated-link-wrapper">
+              <div className="animated-link-effect-2"><div /></div>
+              <button onClick={() => onContact?.()} className="animated-link-2 text-sm sm:text-base">
+                Contact
+              </button>
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      </div>
     </header>
   )
 }

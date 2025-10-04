@@ -29,7 +29,7 @@ const WavesEffect: React.FC = () => {
 
       const PI2 = Math.PI * 2
       const material = new THREE.SpriteMaterial({
-        color: 0x939393, // Header color
+        color: 0x432389, // Header color
         map: new THREE.CanvasTexture(generateSprite(PI2))
       })
 

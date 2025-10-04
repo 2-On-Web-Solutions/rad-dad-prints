@@ -8,6 +8,7 @@ import Header from './components/Header'
 import Hero from './components/Hero'
 import WavesEffect from './components/WaveEffects'
 import ContactModal from './components/ContactModal'
+import Services from './components/Services'
 import Footer from './components/Footer'
 
 export default function Home() {
@@ -26,6 +27,8 @@ export default function Home() {
       {showModal && <ContactModal isOpen={showModal} onClose={() => setShowModal(false)} />}
       {mounted && (
         <>
+          <Services />
+          <hr className="w-full border-t border-[var(--color-foreground)] opacity-30 my-16 transition-colors" />
           <Footer />
         </>
       )}
