@@ -102,7 +102,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* JSON-LD for rich snippets */}
         <script
           type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
