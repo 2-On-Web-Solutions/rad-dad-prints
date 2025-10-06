@@ -50,12 +50,12 @@ html {
   scroll-behavior: smooth;
 }
 
-#welcome {
-  scroll-margin-top: 12rem; /* Adjust based on header height */
+#print-designs {
+  scroll-margin-top: 22rem;  /* was 7rem */
 }
 
-#features-products {
-  scroll-margin-top: 8rem; /* Match header height */
+#bundles-packages { 
+  scroll-margin-top: 22rem; 
 }
 
 #services {

@@ -5,7 +5,7 @@ import { FaBars } from 'react-icons/fa';
 import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
 
-export default function Header({ onContact }) {
+export default function Header({ onContact, onOpenGallery }) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -23,13 +23,12 @@ export default function Header({ onContact }) {
       <div
         className="relative max-w-7xl mx-auto"
         style={{
-          // Tweak these to reposition/resize the logo
           '--logo-left': '-300px',
           '--logo-top': '225%',
           '--logo-width': '300px',
         }}
       >
-        {/* Floating logo (absolute) — does NOT affect layout */}
+        {/* Floating logo (absolute) */}
         <button
           onClick={scrollToTop}
           aria-label="Go to top"
@@ -70,24 +69,37 @@ export default function Header({ onContact }) {
                         lg:mx-auto`}
           >
             <li>
-              <a href="#print-designs" className="hover:text-brand-450 transition py-1 whitespace-nowrap">
+              <a
+                href="#print-designs"
+                className="hover:text-brand-450 transition py-1 whitespace-nowrap"
+              >
                 Print Designs
               </a>
             </li>
             <li>
-              <a href="#bundles-packages" className="hover:text-brand-450 transition py-1 whitespace-nowrap">
+              <a
+                href="#bundles-packages"
+                className="hover:text-brand-450 transition py-1 whitespace-nowrap"
+              >
                 Bundles & Packages
               </a>
             </li>
             <li>
-              <a href="#services" className="hover:text-brand-450 transition py-1">
+              <a
+                href="#services"
+                className="hover:text-brand-450 transition py-1"
+              >
                 Services
               </a>
             </li>
             <li>
-              <a href="#gallery" className="hover:text-brand-450 transition py-1">
+              {/* ✅ Changed from anchor to button for modal trigger */}
+              <button
+                onClick={onOpenGallery}
+                className="hover:text-brand-450 transition py-1 whitespace-nowrap"
+              >
                 Gallery
-              </a>
+              </button>
             </li>
           </ul>
 
@@ -95,8 +107,13 @@ export default function Header({ onContact }) {
           <div className="flex gap-4 justify-center sm:justify-end items-center mt-2 sm:mt-0 lg:mr-4 xl:mr-8 2xl:-mr-70">
             <ThemeToggle />
             <div className="animated-link-wrapper">
-              <div className="animated-link-effect-2"><div /></div>
-              <button onClick={() => onContact?.()} className="animated-link-2 text-sm sm:text-base">
+              <div className="animated-link-effect-2">
+                <div />
+              </div>
+              <button
+                onClick={() => onContact?.()}
+                className="animated-link-2 text-sm sm:text-base"
+              >
                 Contact
               </button>
             </div>
