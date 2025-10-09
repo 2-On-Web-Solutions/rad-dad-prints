@@ -6,20 +6,21 @@ import './styles/effects.css';
 import './globals.css';
 import Header from './components/Header';
 import Hero from './components/Hero';
-import WavesEffect from './components/WaveEffects';
 import ContactModal from './components/ContactModal';
 import PrintDesign from './components/PrintDesign';
 import BundlesPackages from './components/BundlesPackages';
 import Services from './components/Services';
 import Footer from './components/Footer';
 import GalleryModal from './components/GalleryModal';
+import ChatWidget from './components/ChatWidget'; // 👈 Added import
+import Reviews from './components/Reviews'
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  //Static image list for now (will later come from DB)
+  // Static image list for now (will later come from DB)
   const galleryImages = [
     '/assets/rad-dad-prints.png',
     '/assets/rad-dad-prints.png',
@@ -42,13 +43,11 @@ export default function Home() {
 
       <Hero />
 
-      <hr className="w-full border-t border-[var(--color-foreground)] opacity-30 my-16 transition-colors" />
+      <hr className="rdp-hr my-16" aria-hidden="true" />
       <PrintDesign />
-      <hr className="w-full border-t border-[var(--color-foreground)] opacity-30 my-16 transition-colors" />
+      <hr className="rdp-hr my-16" aria-hidden="true" />
       <BundlesPackages />
-      <hr className="w-full border-t border-[var(--color-foreground)] opacity-30 my-16 transition-colors" />
-
-      {mounted && <WavesEffect />}
+      <hr className="rdp-hr my-16" aria-hidden="true" />
 
       {/* Contact Modal */}
       {showModal && <ContactModal isOpen={showModal} onClose={() => setShowModal(false)} />}
@@ -63,10 +62,14 @@ export default function Home() {
       {mounted && (
         <>
           <Services />
-          <hr className="w-full border-t border-[var(--color-foreground)] opacity-30 my-16 transition-colors" />
+          <hr className="rdp-hr my-16" aria-hidden="true" />
+          <Reviews />
           <Footer />
         </>
       )}
+
+      {/* 👇 Fixed bottom-right chatbot */}
+      <ChatWidget />
     </div>
   );
 }

@@ -71,7 +71,7 @@ export default function Header({ onContact, onOpenGallery }) {
             <li>
               <a
                 href="#print-designs"
-                className="hover:text-brand-450 transition py-1 whitespace-nowrap"
+                className="rdp-navlink transition py-1 whitespace-nowrap"
               >
                 Print Designs
               </a>
@@ -79,7 +79,7 @@ export default function Header({ onContact, onOpenGallery }) {
             <li>
               <a
                 href="#bundles-packages"
-                className="hover:text-brand-450 transition py-1 whitespace-nowrap"
+                className="rdp-navlink transition py-1 whitespace-nowrap"
               >
                 Bundles & Packages
               </a>
@@ -87,16 +87,15 @@ export default function Header({ onContact, onOpenGallery }) {
             <li>
               <a
                 href="#services"
-                className="hover:text-brand-450 transition py-1"
+                className="rdp-navlink transition py-1"
               >
                 Services
               </a>
             </li>
             <li>
-              {/* ✅ Changed from anchor to button for modal trigger */}
               <button
                 onClick={onOpenGallery}
-                className="hover:text-brand-450 transition py-1 whitespace-nowrap"
+                className="rdp-navlink transition py-1 whitespace-nowrap"
               >
                 Gallery
               </button>

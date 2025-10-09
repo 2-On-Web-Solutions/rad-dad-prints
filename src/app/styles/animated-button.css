@@ -17,7 +17,7 @@
     padding: 5px 10px;
     height: 3rem;
     border-radius: 6px;
-    background: #141518;
+    background: #1b1b1b;
     color: #ffffff;
 }
   
@@ -36,7 +36,7 @@
 }
   
 .animated-link-effect div {
-    background-image: conic-gradient(from 0 at 50% 50%, rgba(255, 255, 255, .5) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgba(255, 255, 255, .5) 360deg);
+    background-image: conic-gradient(from 0 at 50% 50%, rgba(89, 52, 177) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgba(89, 52, 177) 360deg);
     position: relative;
     left: 50%;
     top: 50%;
@@ -91,7 +91,7 @@
 }
 
 .animated-link-effect-2 div {
-    background-image: conic-gradient(from 0 at 50% 50%, rgb(106, 82, 161) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgb(106, 82, 161) 360deg);
+    background-image: conic-gradient(from 0 at 50% 50%, rgb(89, 52, 177) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgb(89, 52, 177) 360deg);
     position: relative;
     left: 50%;
     top: 50%;

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "hours",
+    "questions": ["what are your hours", "when are you open", "business hours", "opening times"],
+    "answer": "Our print shop runs **Monday–Friday, 9 AM–5 PM (Atlantic Time)**. We sometimes take weekend rush jobs by request!"
+  },
+  {
+    "id": "location",
+    "questions": ["where are you located", "shop location", "address", "pickup spot"],
+    "answer": "We’re proudly based in **Dartmouth, Nova Scotia**, serving local and remote customers across Canada."
+  },
+  {
+    "id": "services",
+    "questions": ["what services do you offer", "what can you print", "3d printing services", "do you do design work"],
+    "answer": "We offer **custom 3D printing, prototyping, and finishing**. From small parts and miniatures to custom signage and branded merch—if you can imagine it, we can print it."
+  },
+  {
+    "id": "materials",
+    "questions": ["what materials do you use", "what filament types", "pla petg abs resin", "do you print resin"],
+    "answer": "We print with **PLA, PETG, ABS, ASA, TPU (flex), and resin** depending on your project needs—balancing strength, detail, and finish quality."
+  },
+  {
+    "id": "pricing",
+    "questions": ["how much does it cost", "pricing", "rates", "how do you charge"],
+    "answer": "Every print is unique! Pricing depends on **material, size, layer height, and finish**. We’ll review your file and send a quick custom quote before starting."
+  },
+  {
+    "id": "turnaround",
+    "questions": ["how long does a print take", "turnaround time", "delivery time", "when will my order be ready"],
+    "answer": "Most orders are ready in **2–5 business days**, depending on print time and finishing. Larger or multi-part prints may take a little longer."
+  },
+  {
+    "id": "files",
+    "questions": ["what file types do you accept", "file formats", "upload model", "can i send an stl"],
+    "answer": "We accept **STL, 3MF, and STEP/IGES** files. You can upload them through our **Creative Corner** tool or send them directly when requesting a quote."
+  },
+  {
+    "id": "greetings",
+    "questions": ["hello", "hi", "hey", "good morning", "good afternoon"],
+    "answer": "Hey there 👋 — welcome to **Rad Dad Prints!** Got an idea you’d love to bring to life? Ask me about printing materials, turnaround, or how to request a quote."
+  }
+]

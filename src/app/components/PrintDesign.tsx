@@ -1,7 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import ItemModal, { type CatalogItem } from './ItemModal';
+import {
+  Trophy,
+  ToyBrick,
+  Landmark,
+  Home,
+  Wrench,
+  Shield,
+  GraduationCap,
+  Sparkles,
+  Box,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
 /* =======================
    Types
@@ -9,7 +22,7 @@ import ItemModal, { type CatalogItem } from './ItemModal';
 type CatalogCategory = {
   id: string;
   label: string;
-  coverEmoji?: string;
+  icon?: ReactNode; // <-- replaced coverEmoji with a real icon
   blurb?: string;
   items: CatalogItem[];
 };
@@ -21,7 +34,7 @@ const BASE_CATEGORIES: CatalogCategory[] = [
   {
     id: 'sports',
     label: 'Sports',
-    coverEmoji: '🏒',
+    icon: <Trophy className="w-14 h-14" />,
     blurb: 'Logos, nameplates, team swag, trophy parts.',
     items: [
       {
@@ -44,7 +57,7 @@ const BASE_CATEGORIES: CatalogCategory[] = [
   {
     id: 'toys',
     label: 'Toys',
-    coverEmoji: '🧸',
+    icon: <ToyBrick className="w-14 h-14" />,
     blurb: 'Articulated figures, puzzles, fidgets.',
     items: [
       { id: 'to-1', title: 'Articulated Dragon', priceFrom: 'From $20', images: ['/assets/prints/dragon-1.jpg', '/assets/prints/dragon-2.jpg'], files: [{ label: 'STL', href: '/files/prints/dragon.stl', type: 'model/stl' }], blurb: 'Poseable desk dragon with segmented body.' },
@@ -57,7 +70,7 @@ const BASE_CATEGORIES: CatalogCategory[] = [
   {
     id: 'models',
     label: 'Models',
-    coverEmoji: '🏛️',
+    icon: <Landmark className="w-14 h-14" />,
     blurb: 'Miniatures, props, and display stands.',
     items: [
       { id: 'mo-1', title: 'Tabletop Mini (28mm)', priceFrom: 'From $8' },
@@ -67,10 +80,10 @@ const BASE_CATEGORIES: CatalogCategory[] = [
       { id: 'mo-5', title: 'Scale Railing Set', priceFrom: 'From $16' },
     ],
   },
-  { id: 'home', label: 'Home', coverEmoji: '🏠', blurb: 'Hooks, organizers, name plates.', items: [{ id: 'ho-1', title: 'Cable Clip', priceFrom: 'From $3' }] },
-  { id: 'gadgets', label: 'Gadgets', coverEmoji: '🔧', blurb: 'Phone stands, mounts, helpers.', items: [{ id: 'ga-1', title: 'Phone Stand', priceFrom: 'From $5' }] },
-  { id: 'cosplay', label: 'Cosplay', coverEmoji: '🛡️', blurb: 'Props, armor bits, badges.', items: [{ id: 'co-1', title: 'Emblem Badge', priceFrom: 'From $8' }] },
-  { id: 'education', label: 'Education', coverEmoji: '🎓', blurb: 'Classroom aids, models.', items: [{ id: 'ed-1', title: 'Math Shapes Set', priceFrom: 'From $12' }] },
+  { id: 'home', label: 'Home', icon: <Home className="w-14 h-14" />, blurb: 'Hooks, organizers, name plates.', items: [{ id: 'ho-1', title: 'Cable Clip', priceFrom: 'From $3' }] },
+  { id: 'gadgets', label: 'Gadgets', icon: <Wrench className="w-14 h-14" />, blurb: 'Phone stands, mounts, helpers.', items: [{ id: 'ga-1', title: 'Phone Stand', priceFrom: 'From $5' }] },
+  { id: 'cosplay', label: 'Cosplay', icon: <Shield className="w-14 h-14" />, blurb: 'Props, armor bits, badges.', items: [{ id: 'co-1', title: 'Emblem Badge', priceFrom: 'From $8' }] },
+  { id: 'education', label: 'Education', icon: <GraduationCap className="w-14 h-14" />, blurb: 'Classroom aids, models.', items: [{ id: 'ed-1', title: 'Math Shapes Set', priceFrom: 'From $12' }] },
 ];
 
 // "All" virtual category
@@ -78,11 +91,18 @@ const ALL_ID = 'all';
 const ALL_CATEGORY: CatalogCategory = {
   id: ALL_ID,
   label: 'All',
-  coverEmoji: '✨',
+  icon: <Sparkles className="w-14 h-14" />,
   blurb: 'Everything in one place.',
   items: BASE_CATEGORIES.flatMap((c) => c.items),
 };
 const CATEGORIES_WITH_ALL: CatalogCategory[] = [ALL_CATEGORY, ...BASE_CATEGORIES];
+
+/* =======================
+   Slider constants
+======================= */
+const CARD_W = 400; // must match w-[400px]
+const GAP_PX = 32;  // Tailwind gap-8
+const GLOW_PAD = 20; // keep right-side glow visible in the viewport
 
 /* =======================
    Component
@@ -99,15 +119,19 @@ export default function PrintDesign() {
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
 
-  // ====== WINDOWED CAROUSEL STATE ======
+  // ====== SLIDING CAROUSEL STATE ======
   const total = BASE_CATEGORIES.length;
-  const [startIdx, setStartIdx] = useState(0);
   const [visibleCount, setVisibleCount] = useState(3); // 3 desktop, 2 tablet, 1 mobile
-
-  // NEW: auto-rotate pause flag
   const [isPaused, setIsPaused] = useState(false);
 
-  // responsive visible count (prevents overflow)
+  // looped track: base × 3 (for infinite slide)
+  const loop = useMemo(() => [...BASE_CATEGORIES, ...BASE_CATEGORIES, ...BASE_CATEGORIES], []);
+
+  // start from the middle copy so we can go left or right
+  const [slideIdx, setSlideIdx] = useState(total);
+  const [noAnim, setNoAnim] = useState(false); // disable transition when snapping
+
+  // responsive visible count
   useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
@@ -120,21 +144,32 @@ export default function PrintDesign() {
     return () => window.removeEventListener('resize', compute);
   }, []);
 
-  // visible window
-  const visibleCats = useMemo(
-    () => Array.from({ length: visibleCount }, (_, i) => BASE_CATEGORIES[(startIdx + i) % total]),
-    [startIdx, visibleCount, total]
-  );
-
-  const next = () => setStartIdx((i) => (i + 1) % total);
-  const prev = () => setStartIdx((i) => (i - 1 + total) % total);
-
-  // NEW: auto-rotate (pauses on hover/focus)
+  // auto-rotate
   useEffect(() => {
     if (isPaused) return;
-    const id = setInterval(() => setStartIdx((i) => (i + 1) % total), 4200);
+    const id = setInterval(() => setSlideIdx((i) => i + 1), 4200);
     return () => clearInterval(id);
-  }, [isPaused, total]);
+  }, [isPaused]);
+
+  // infinite loop snap
+  useEffect(() => {
+    if (slideIdx >= 2 * total) {
+      setNoAnim(true);
+      setSlideIdx((i) => i - total);
+    } else if (slideIdx < total) {
+      setNoAnim(true);
+      setSlideIdx((i) => i + total);
+    }
+  }, [slideIdx, total]);
+
+  useEffect(() => {
+    if (!noAnim) return;
+    const id = requestAnimationFrame(() => setNoAnim(false));
+    return () => cancelAnimationFrame(id);
+  }, [noAnim]);
+
+  const next = () => setSlideIdx((i) => i + 1);
+  const prev = () => setSlideIdx((i) => i - 1);
 
   // derived active category for modal grid
   const activeCategory = useMemo(
@@ -142,7 +177,7 @@ export default function PrintDesign() {
     [activeCategoryId]
   );
 
-  // ESC / Cmd+F in modal
+  // ===== Modal keyboard helpers
   useEffect(() => {
     if (!categoryOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -156,9 +191,18 @@ export default function PrintDesign() {
     return () => document.removeEventListener('keydown', onKey);
   }, [categoryOpen]);
 
+  // Lock page scroll when the modal is open
+  useEffect(() => {
+    document.body.style.overflow = categoryOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [categoryOpen]);
+
   const openModal = (startId: string = ALL_ID) => {
     setActiveCategoryId(startId);
     setQuery('');
+    setPage(1);
     setCategoryOpen(true);
   };
 
@@ -169,35 +213,66 @@ export default function PrintDesign() {
     return items.filter((it) => it.title.toLowerCase().includes(q));
   }, [query, activeCategory]);
 
+  /* ===== Pagination for modal grid ===== */
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(9);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, activeCategoryId]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const start = (page - 1) * pageSize;
+  const end = Math.min(start + pageSize, filteredItems.length);
+  const pagedItems = filteredItems.slice(start, end);
+
+  const go = (p: number) => setPage(Math.min(Math.max(1, p), pageCount));
+
+  // slider geometry
+  const viewportPx = visibleCount * CARD_W + (visibleCount - 1) * GAP_PX;
+  const STEP = CARD_W + GAP_PX;
+  const x = -slideIdx * STEP;
+
   return (
     <section id="print-designs" className="py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto">
       {/* Left title + button | Right carousel */}
       <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] gap-10 items-start">
         {/* Left: headline + animated button */}
         <div className="flex flex-col items-center md:items-start justify-center">
-          <h2 className="text-[3rem] leading-tight font-semibold text-[var(--color-foreground)]">
+          <h2
+            className="
+              font-extrabold
+              leading-[1.15]
+              tracking-[-0.02em]
+              text-[clamp(1.75rem,3.5vw+0.5rem,3rem)]
+              text-[var(--color-foreground)]
+            "
+          >
             <span className="block text-center md:text-center">Print</span>
             <span className="block text-center md:text-center">Designs</span>
           </h2>
-          <div className="mt-4 flex ml-2 justify-center md:justify-start">
+
+          <div className="mt-3 flex ml-2 justify-center md:justify-start">
             <button
               type="button"
               onClick={() => openModal(ALL_ID)}
-              className="animated-link-2 relative inline-flex items-center justify-center px-4 py-2 rounded-md"
+              className="animated-link relative inline-flex items-center justify-center px-4 py-2 rounded-md"
             >
               <span className="relative z-10 text-sm">Browse All</span>
-              <i aria-hidden className="animated-link-effect-2"><div /></i>
+              <i aria-hidden className="animated-link-effect">
+                <div />
+              </i>
             </button>
           </div>
         </div>
 
-        {/* Right: WINDOWED CAROUSEL (no overflow) */}
+        {/* Right: SLIDING CAROUSEL */}
         <div
-          className="relative"
+          className="relative overflow-visible"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          {/* Arrows outside */}
+          {/* Prev */}
           <button
             aria-label="Previous"
             onClick={prev}
@@ -205,52 +280,70 @@ export default function PrintDesign() {
             onBlur={() => setIsPaused(false)}
             className="hidden sm:flex absolute -left-10 top-1/2 -translate-y-1/2 z-10
                        bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur px-3 py-2 rounded-full hover:bg-[var(--color-background)]"
+                       backdrop-blur p-2 rounded-full hover:bg-[var(--color-background)] transition"
           >
-            ‹
+            <ChevronLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-stretch justify-center gap-8">
-            {visibleCats.map((c, i) => (
-              <button
-                key={`${c.id}-${(startIdx + i) % total}`}
-                onClick={() => openModal(c.id)}
-                className="
-                  w-[400px] min-w-[400px] max-w-[400px]  /* FIXED WIDTH */
-                  shrink-0 grow-0
-                  rounded-2xl border border-[var(--color-foreground)]/10
-                  bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
-                  transition shadow-md
-                "
-              >
-                <div className="p-8 h-full min-h-[240px] flex flex-col items-center text-center">
-                  {/* icon row (fixed height) */}
-                  <div className="mb-4 text-6xl leading-none h-[56px] flex items-center justify-center select-none">
-                    {c.coverEmoji ?? '🧩'}
+          {/* Viewport */}
+          <div
+            className="rdp-edge-mask overflow-x-hidden overflow-y-visible mx-auto pt-2 pb-8"
+            style={{ width: viewportPx + GLOW_PAD * 2, padding: `0 ${GLOW_PAD}px` }}
+          >
+            <div
+              className="flex items-stretch gap-8"
+              style={{
+                transform: `translateX(${x}px)`,
+                transition: noAnim ? 'none' : 'transform 450ms ease-in-out',
+                willChange: 'transform',
+                width: 'max-content',
+              }}
+            >
+              {loop.map((c, i) => (
+                <button
+                  key={`${c.id}-${i}`}
+                  onClick={() => openModal(c.id)}
+                  className="
+                    relative
+                    w-[400px] min-w-[400px] max-w-[400px]
+                    shrink-0 grow-0
+                    rounded-none
+                    border border-[var(--color-foreground)]/15
+                    bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
+                    transition
+                    card-glow
+                  "
+                >
+                  <div className="p-8 h-full min-h-[240px] flex flex-col items-center text-center">
+                    {/* icon row (fixed height) */}
+                    <div className="mb-4 h-[56px] flex items-center justify-center select-none text-brand-500">
+                      {c.icon ?? <Box className="w-14 h-14" />}
+                    </div>
+                    {/* title row (fixed height) */}
+                    <div className="text-2xl font-semibold h-[32px] flex items-center justify-center">
+                      {c.label}
+                    </div>
+                    {/* blurb row */}
+                    {c.blurb && (
+                      <p
+                        className="opacity-70 text-sm mt-3 max-w-[32ch] h-[40px]"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {c.blurb}
+                      </p>
+                    )}
                   </div>
-
-                  {/* title row (fixed height) */}
-                  <div className="text-2xl font-semibold h-[32px] flex items-center justify-center">
-                    {c.label}
-                  </div>
-
-                  {/* blurb row (fixed height + clamp) */}
-                  <p
-                    className="opacity-70 text-sm mt-3 max-w-[32ch] h-[40px]"
-                    style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {c.blurb}
-                  </p>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* Next */}
           <button
             aria-label="Next"
             onClick={next}
@@ -258,9 +351,9 @@ export default function PrintDesign() {
             onBlur={() => setIsPaused(false)}
             className="hidden sm:flex absolute -right-10 top-1/2 -translate-y-1/2 z-10
                        bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur px-3 py-2 rounded-full hover:bg-[var(--color-background)]"
+                       backdrop-blur p-2 rounded-full hover:bg-[var(--color-background)] transition"
           >
-            ›
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -268,22 +361,27 @@ export default function PrintDesign() {
       {/* Category Modal (tabs + search) */}
       {categoryOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 p-4 md:p-8 overflow-y-auto"
-          onClick={(e) => { if (e.target === e.currentTarget) setCategoryOpen(false); }}
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 p-4 md:p-8"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCategoryOpen(false);
+          }}
           aria-modal="true"
           role="dialog"
         >
-          <div className="relative w-full max-w-5xl bg-[var(--color-background)] text-[var(--color-foreground)] rounded-xl shadow-2xl">
-            {/* Header */}
+          <div className="relative w-full max-w-5xl bg-[var(--color-background)] text-[var(--color-foreground)] rounded-xl shadow-2xl
+                          flex flex-col overflow-hidden h-[80vh] md:h-[85vh] min-h-[560px]">
+            {/* Header (sticky) */}
             <div className="sticky top-0 z-10 bg-[var(--color-background)]/95 backdrop-blur border-b border-[var(--color-foreground)]/10 px-5 md:px-8 pt-4 pb-3 rounded-t-xl">
               <div className="flex items-center gap-3">
                 <div className="text-2xl select-none">
-                  {(CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.coverEmoji) ?? '🧩'}
+                  {CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.icon ?? <Box className="w-6 h-6" />}
                 </div>
                 <h3 className="text-2xl font-semibold">
                   {CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.label}
                 </h3>
-                <button onClick={() => setCategoryOpen(false)} className="ml-auto text-2xl hover:opacity-80" aria-label="Close modal">×</button>
+                <button onClick={() => setCategoryOpen(false)} className="ml-auto text-2xl hover:opacity-80" aria-label="Close modal">
+                  ×
+                </button>
               </div>
 
               {/* Tabs + Search */}
@@ -294,7 +392,11 @@ export default function PrintDesign() {
                     return (
                       <button
                         key={cat.id}
-                        onClick={() => { setActiveCategoryId(cat.id); setQuery(''); }}
+                        onClick={() => {
+                          setActiveCategoryId(cat.id);
+                          setQuery('');
+                          setPage(1);
+                        }}
                         className={`whitespace-nowrap px-3 py-1.5 rounded-full border text-sm transition ${
                           active
                             ? 'bg-[var(--color-foreground)] text-[var(--color-background)] border-[var(--color-foreground)]'
@@ -320,7 +422,10 @@ export default function PrintDesign() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-60 select-none">🔎</span>
                   {query && (
                     <button
-                      onClick={() => { setQuery(''); searchRef.current?.focus(); }}
+                      onClick={() => {
+                        setQuery('');
+                        searchRef.current?.focus();
+                      }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-lg opacity-70 hover:opacity-100"
                       aria-label="Clear search"
                     >
@@ -331,32 +436,110 @@ export default function PrintDesign() {
               </div>
             </div>
 
-            {/* Grid (filtered) */}
-            <div className="px-5 md:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems.map((it) => (
-                <button
-                  key={it.id}
-                  onClick={() => { setActiveItem(it); setItemOpen(true); }}
-                  className="text-left rounded-lg border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.04] hover:bg-[var(--color-foreground)]/[0.08] transition shadow-md"
-                >
-                  <div className="h-40 md:h-48 rounded-t-lg bg-gradient-to-br from-purple-500/40 to-indigo-600/30 relative overflow-hidden" />
-                  <div className="p-4">
-                    <div className="font-medium">{it.title}</div>
-                    {it.priceFrom && <div className="text-sm text-teal-400 mt-1">{it.priceFrom}</div>}
+            {/* Scrollable body (grid + footer + pagination) */}
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+              {/* Grid (filtered & paged) */}
+              <div className="px-5 md:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pagedItems.map((it) => (
+                  <button
+                    key={it.id}
+                    onClick={() => {
+                      setActiveItem(it);
+                      setItemOpen(true);
+                    }}
+                    className="text-left rounded-lg border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.04] hover:bg-[var(--color-foreground)]/[0.08] transition shadow-md"
+                  >
+                    <div className="h-40 md:h-48 rounded-t-lg bg-gradient-to-br from-purple-500/40 to-indigo-600/30 relative overflow-hidden" />
+                    <div className="p-4">
+                      <div className="font-medium">{it.title}</div>
+                      {it.priceFrom && <div className="text-sm text-teal-400 mt-1">{it.priceFrom}</div>}
+                    </div>
+                  </button>
+                ))}
+                {!filteredItems.length && (
+                  <div className="col-span-full opacity-70 text-sm">No matches for “{query}”. Try a different term or switch tabs above.</div>
+                )}
+              </div>
+
+              {/* Pagination + page-size */}
+              {!!filteredItems.length && (
+                <div className="px-5 md:px-8 pb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="text-sm opacity-70">
+                    Showing <span className="font-medium">{filteredItems.length ? start + 1 : 0}</span>–
+                    <span className="font-medium">{end}</span> of <span className="font-medium">{filteredItems.length}</span>
                   </div>
-                </button>
-              ))}
-              {!filteredItems.length && (
-                <div className="col-span-full opacity-70 text-sm">
-                  No matches for “{query}”. Try a different term or switch tabs above.
+
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm opacity-80">
+                      Per page:{' '}
+                      <select
+                        className="ml-1 rounded-md border border-[var(--color-foreground)]/20 bg-transparent px-2 py-1 text-sm"
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setPage(1);
+                        }}
+                      >
+                        {[6, 9, 12, 18].map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        className="px-2 py-1 rounded border border-[var(--color-foreground)]/20 disabled:opacity-40 inline-flex items-center gap-1"
+                        onClick={() => go(page - 1)}
+                        disabled={page <= 1}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Prev</span>
+                      </button>
+
+                      {Array.from({ length: pageCount }).slice(0, 7).map((_, i) => {
+                        let n = i + 1;
+                        if (pageCount > 7) {
+                          const window = [1, 2, page - 1, page, page + 1, pageCount - 1, pageCount]
+                            .filter((x, idx, arr) => x >= 1 && x <= pageCount && arr.indexOf(x) === idx)
+                            .sort((a, b) => a - b);
+                          n = window[i] ?? 0;
+                          if (!n) return null;
+                        }
+                        const active = n === page;
+                        return (
+                          <button
+                            key={`p-${n}`}
+                            onClick={() => go(n)}
+                            className={`px-2.5 py-1 rounded border text-sm ${
+                              active
+                                ? 'bg-[var(--color-foreground)] text-[var(--color-background)] border-[var(--color-foreground)]'
+                                : 'border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        className="px-2 py-1 rounded border border-[var(--color-foreground)]/20 disabled:opacity-40 inline-flex items-center gap-1"
+                        onClick={() => go(page + 1)}
+                        disabled={page >= pageCount}
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
 
-            <div className="px-5 md:px-8 pb-6">
-              <p className="text-sm opacity-70">
-                Tip: These are examples. We can customize sizing, colors, and materials for your project.
-              </p>
+              {/* Footer tip */}
+              <div className="px-5 md:px-8 pb-6">
+                <p className="text-sm opacity-70">Tip: These are examples. We can customize sizing, colors, and materials for your project.</p>
+              </div>
             </div>
           </div>
 

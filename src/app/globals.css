@@ -1,39 +1,59 @@
 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
 @import "tailwindcss";
 
+/* =========================
+   Tailwind Theme Tokens
+   ========================= */
 @theme {
   /* Rad Dad purple */
   --color-brand: #432389;
 
-  /* optional shades if you want them */
+  /* optional shades */
   --color-brand-50:  color-mix(in oklch, #432389 10%, white);
   --color-brand-100: color-mix(in oklch, #432389 20%, white);
   --color-brand-200: color-mix(in oklch, #432389 30%, white);
   --color-brand-300: color-mix(in oklch, #432389 40%, white);
   --color-brand-400: color-mix(in oklch, #432389 55%, white);
-  --color-brand-450: color-mix(in oklch, #432389 75%, white); /* midway blend */
+  --color-brand-450: color-mix(in oklch, #432389 75%, white);
   --color-brand-500: #432389; /* base */
   --color-brand-600: color-mix(in oklch, #432389 85%, black);
   --color-brand-700: color-mix(in oklch, #432389 92%, black);
 }
 
-/* Font Variables from next/font/google */
+/* =========================
+   Root Theme Variables
+   ========================= */
 :root {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Custom color variables for light theme */
+  /* Light theme defaults */
   --color-background: #ffffff;
   --color-foreground: #000000;
+
+  /* Card glow (derived from foreground so it auto-flips in dark mode) */
+  --rdp-glow:        color-mix(in oklab, var(--color-foreground) 14%, transparent);
+  --rdp-glow-strong: color-mix(in oklab, var(--color-foreground) 22%, transparent);
+
+  /* Edge-mask width for carousels (px) */
+  --rdp-mask-edge: 16px;
+
+  /* Hero-frame gradient (tune to match hero) */
+  --hero-grad-from: #13e3ff; /* teal/cyan */
+  --hero-grad-to:   #6d44ff; /* purple */
 }
 
-/* Dark theme overrides when `html` has class `dark` */
+/* Dark theme overrides */
 html.dark {
   --color-background: #0d0d0d;
   --color-foreground: #f5f5f5;
 }
 
-/* Base styling for body */
+/* =========================
+   Base
+   ========================= */
+html { scroll-behavior: smooth; }
+
 body {
   @apply transition-colors duration-300;
   background-color: var(--color-background);
@@ -41,23 +61,108 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Optional Dancing Script utility class */
-.font-dancing {
-  font-family: 'Dancing Script', cursive;
+/* Optional Dancing Script utility */
+.font-dancing { font-family: 'Dancing Script', cursive; }
+
+/* Anchor offsets so in-page links don’t hide under the header */
+#print-designs     { scroll-margin-top: 22rem; }
+#bundles-packages { scroll-margin-top: 22rem; }
+#services         { scroll-margin-top: 5rem; }
+
+/* =========================
+   Carousel Card Glow
+   ========================= */
+.card-glow {
+  box-shadow:
+    0 12px 18px var(--rdp-glow),
+    4px 0 10px var(--rdp-glow),
+    8px 10px 14px var(--rdp-glow);
+}
+.card-glow:hover {
+  box-shadow:
+    0 14px 22px var(--rdp-glow-strong),
+    6px 0 14px var(--rdp-glow-strong),
+    10px 12px 18px var(--rdp-glow-strong);
 }
 
-html {
-  scroll-behavior: smooth;
+/* =========================
+   Edge fade for carousel viewport
+   ========================= */
+.rdp-edge-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--rdp-mask-edge),
+    #000 calc(100% - var(--rdp-mask-edge)),
+    transparent 100%
+  );
+          mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--rdp-mask-edge),
+    #000 calc(100% - var(--rdp-mask-edge)),
+    transparent 100%
+  );
 }
 
-#print-designs {
-  scroll-margin-top: 22rem;  /* was 7rem */
+/* =========================
+   NAV: Gradient hover text only
+   - Right → Left (purple → teal)
+   - No underline, no glow
+   - Base color stays white (both themes)
+   ========================= */
+.rdp-navlink,
+.rdp-navlink:link,
+.rdp-navlink:visited {
+  text-decoration: none;
+  color: #fff;                 /* always white */
+  -webkit-text-fill-color: #fff; /* Safari baseline */
+  padding: .25rem .25rem;
+  border-radius: .25rem;
+  transition: color .2s ease, background .2s ease;
 }
 
-#bundles-packages { 
-  scroll-margin-top: 22rem; 
+.rdp-navlink:hover,
+.rdp-navlink:focus-visible,
+.rdp-navlink:active {
+  background-image: linear-gradient(to left, var(--hero-grad-to), var(--hero-grad-from));
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent; /* Safari when clipped */
+  outline: none;
 }
 
-#services {
-  scroll-margin-top: 5rem; /* Match header height */
+/* Gradient <hr> helpers */
+.rdp-hr {
+  display: block;                 /* ✅ ensure it renders as a full-width block */
+  width: 100%;                    /* ✅ full width */
+  height: 1px;
+  border: 0;
+  background: linear-gradient(to right, var(--hero-grad-from), var(--hero-grad-to));
+  opacity: .7;
+}
+
+.rdp-hr-glow {
+  display: block;
+  width: 100%;
+  height: 1px;
+  border: 0;
+  background: linear-gradient(to right, var(--hero-grad-from), var(--hero-grad-to));
+  opacity: .9;
+  position: relative;
+}
+.rdp-hr-glow::after {
+  content: "";
+  position: absolute;
+  inset: -6px 0 -6px 0;
+  background: linear-gradient(to right, var(--hero-grad-from), var(--hero-grad-to));
+  filter: blur(10px);
+  opacity: .25;
+  pointer-events: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .rdp-navlink { transition: none !important; }
 }
