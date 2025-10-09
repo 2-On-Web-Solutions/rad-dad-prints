@@ -238,10 +238,10 @@ export default function PrintDesign() {
       {/* Left title + button | Right carousel */}
       <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] gap-10 items-start">
         {/* Left: headline + animated button */}
-        <div className="flex flex-col items-center md:items-start justify-center">
+        <div className="flex flex-col items-center mt-10 md:items-start justify-center">
           <h2
             className="
-              font-extrabold
+              font-bold
               leading-[1.15]
               tracking-[-0.02em]
               text-[clamp(1.75rem,3.5vw+0.5rem,3rem)]
@@ -256,7 +256,7 @@ export default function PrintDesign() {
             <button
               type="button"
               onClick={() => openModal(ALL_ID)}
-              className="animated-link relative inline-flex items-center justify-center px-4 py-2 rounded-md"
+              className="animated-link-3 relative inline-flex items-center justify-center px-4 py-2 rounded-md"
             >
               <span className="relative z-10 text-sm">Browse All</span>
               <i aria-hidden className="animated-link-effect">
@@ -473,7 +473,7 @@ export default function PrintDesign() {
                     <label className="text-sm opacity-80">
                       Per page:{' '}
                       <select
-                        className="ml-1 rounded-md border border-[var(--color-foreground)]/20 bg-transparent px-2 py-1 text-sm"
+                        className="rdp-select ml-1 text-sm"
                         value={pageSize}
                         onChange={(e) => {
                           setPageSize(Number(e.target.value));
@@ -481,9 +481,7 @@ export default function PrintDesign() {
                         }}
                       >
                         {[6, 9, 12, 18].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
+                          <option key={n} value={n}>{n}</option>
                         ))}
                       </select>
                     </label>

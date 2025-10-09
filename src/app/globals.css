@@ -41,18 +41,34 @@
   /* Hero-frame gradient (tune to match hero) */
   --hero-grad-from: #13e3ff; /* teal/cyan */
   --hero-grad-to:   #6d44ff; /* purple */
+
+  /* ===== Global Scrollbar Theme ===== */
+  --scroll-size: 10px;
+  --scroll-track: transparent;
+  --scroll-thumb: rgba(100,116,139,.45);       /* slate-500-ish */
+  --scroll-thumb-hover: rgba(167,139,250,.75); /* brand-ish hover */
+  --scroll-corner: transparent;
+  --scroll-thumb-gradient: linear-gradient(180deg, var(--hero-grad-from) 0%, var(--hero-grad-to) 100%);
 }
 
 /* Dark theme overrides */
 html.dark {
   --color-background: #0d0d0d;
   --color-foreground: #f5f5f5;
+
+  /* Slightly lighter thumb in dark so it doesn't go too heavy */
+  --scroll-thumb: rgba(148,163,184,.35);
+  --scroll-thumb-hover: rgba(167,139,250,.8);
 }
 
 /* =========================
    Base
    ========================= */
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* Keep layout from “shifting” when scrollbars appear */
+  scrollbar-gutter: stable;
+}
 
 body {
   @apply transition-colors duration-300;
@@ -66,8 +82,46 @@ body {
 
 /* Anchor offsets so in-page links don’t hide under the header */
 #print-designs     { scroll-margin-top: 22rem; }
-#bundles-packages { scroll-margin-top: 22rem; }
-#services         { scroll-margin-top: 5rem; }
+#bundles-packages  { scroll-margin-top: 22rem; }
+#services          { scroll-margin-top: 5rem; }
+
+/* =========================
+   Global Scrollbar Styles
+   (Firefox + WebKit family)
+   ========================= */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+/* Chrome / Edge / Safari / Opera */
+*::-webkit-scrollbar {
+  width: var(--scroll-size);
+  height: var(--scroll-size);
+}
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-gradient);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner { background: var(--scroll-corner); }
+
+/* Thinner rails on very small screens (optional) */
+@media (max-width: 640px) {
+  :root { --scroll-size: 8px; }
+}
 
 /* =========================
    Carousel Card Glow
@@ -107,21 +161,17 @@ body {
 
 /* =========================
    NAV: Gradient hover text only
-   - Right → Left (purple → teal)
-   - No underline, no glow
-   - Base color stays white (both themes)
    ========================= */
 .rdp-navlink,
 .rdp-navlink:link,
 .rdp-navlink:visited {
   text-decoration: none;
-  color: #fff;                 /* always white */
+  color: #fff;                   /* always white */
   -webkit-text-fill-color: #fff; /* Safari baseline */
   padding: .25rem .25rem;
   border-radius: .25rem;
   transition: color .2s ease, background .2s ease;
 }
-
 .rdp-navlink:hover,
 .rdp-navlink:focus-visible,
 .rdp-navlink:active {
@@ -135,14 +185,13 @@ body {
 
 /* Gradient <hr> helpers */
 .rdp-hr {
-  display: block;                 /* ✅ ensure it renders as a full-width block */
-  width: 100%;                    /* ✅ full width */
+  display: block;
+  width: 100%;
   height: 1px;
   border: 0;
   background: linear-gradient(to right, var(--hero-grad-from), var(--hero-grad-to));
   opacity: .7;
 }
-
 .rdp-hr-glow {
   display: block;
   width: 100%;
@@ -165,4 +214,32 @@ body {
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .rdp-navlink { transition: none !important; }
+}
+
+/* =========================
+   Themed Select (for page-size dropdown, etc.)
+   ========================= */
+.rdp-select {
+  color: var(--color-foreground);
+  background-color: color-mix(in oklab, var(--color-foreground) 4%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-foreground) 20%, transparent);
+  border-radius: .375rem; /* rounded-md */
+  padding: .25rem .5rem;
+  font: inherit;
+  outline: none;
+}
+.rdp-select:focus {
+  border-color: color-mix(in oklab, var(--color-foreground) 40%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-foreground) 18%, transparent);
+}
+
+/* Make options readable in both themes */
+.rdp-select option {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+}
+html.dark .rdp-select option {
+  background-color: #0d0d0d; /* same as dark bg var, but options can ignore vars in some UAs */
+  color: #f5f5f5;
 }

@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Dancing_Script } from "next/font/google";
 import { ThemeProvider } from "next-themes";
@@ -49,14 +50,7 @@ export const metadata: Metadata = {
     title: "Rad Dad Prints | Custom 3D Printing Services",
     description:
       "Affordable custom 3D printing, prototyping, and design services with fast turnaround and quality results.",
-    images: [
-      {
-        url: "/og-image.png", // 1200x630 recommended
-        width: 1200,
-        height: 630,
-        alt: "Rad Dad Prints logo",
-      },
-    ],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Rad Dad Prints logo" }],
     locale: "en_CA",
   },
   twitter: {
@@ -66,8 +60,6 @@ export const metadata: Metadata = {
       "Affordable custom 3D printing, prototyping, and design services with fast turnaround and quality results.",
     images: ["/og-image.png"],
   },
-
-  // ✅ Updated icon set
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -89,26 +81,58 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     "@type": "Organization",
     name: "Rad Dad Prints",
     url: SITE_URL,
-    // Use a square PNG for logo; apple-touch-icon is a good, high-res option
     logo: `${SITE_URL}/apple-touch-icon.png`,
-    sameAs: [
-      // Add social links when ready
-    ],
+    sameAs: [],
   };
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Help browsers choose correct default UI colors */}
+        <meta name="color-scheme" content="dark light" />
+
+        {/* No-flash theme script: default to DARK on first visit, respect saved choice otherwise */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  try {
+    var ls = localStorage.getItem('theme');
+    if (ls === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (ls === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      // First visit: start in DARK mode
+      document.documentElement.classList.add('dark');
+    }
+  } catch (e) {}
+})();`,
+          }}
+        />
+
         {/* JSON-LD for rich snippets */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
+
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} antialiased min-h-screen flex flex-col`}
       >
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        {/* 
+          next-themes:
+          - defaultTheme="dark" -> first visit = dark
+          - enableSystem keeps the toggle compatible with system if the user picks "system"
+          - attribute="class" uses the html.class "dark" (matches your CSS)
+        */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          storageKey="theme"
+        >
           {children}
         </ThemeProvider>
       </body>

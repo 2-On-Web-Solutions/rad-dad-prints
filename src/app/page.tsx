@@ -27,6 +27,12 @@ export default function Home() {
     '/assets/rad-dad-prints.png',
     '/assets/rad-dad-prints.png',
     '/assets/rad-dad-prints.png',
+    '/assets/rad-dad-prints.png',
+    '/assets/rad-dad-prints.png',
+    '/assets/rad-dad-prints.png',
+    '/assets/rad-dad-prints.png',
+    '/assets/rad-dad-prints.png',
+    '/assets/rad-dad-prints.png',
   ];
 
   useEffect(() => {
