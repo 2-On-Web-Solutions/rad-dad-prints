@@ -294,7 +294,7 @@ export default function BundlesPackages() {
             style={{
               width: viewportPx + GLOW_PAD * 2,
               padding: `0 ${GLOW_PAD}px`,
-              ['--rdp-mask-edge' as any]: 'clamp(10px, 1.2vw, 18px)',
+              ['--rdp-mask-edge' as string]: 'clamp(10px, 1.2vw, 18px)',
             }}
           >
             <div
