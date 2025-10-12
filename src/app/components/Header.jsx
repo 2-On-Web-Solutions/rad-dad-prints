@@ -19,7 +19,7 @@ export default function Header({ onContact, onOpenGallery }) {
 
   return (
     <header className="fixed top-0 left-0 w-full bg-neutral-800 text-white py-4 px-4 sm:py-6 sm:px-8 lg:px-16 z-50 shadow-md overflow-visible">
-      {/* Container gives us a positioning context for the floating logo */}
+      {/* Positioning context */}
       <div
         className="relative max-w-7xl mx-auto"
         style={{
@@ -28,16 +28,12 @@ export default function Header({ onContact, onOpenGallery }) {
           '--logo-width': '300px',
         }}
       >
-        {/* Floating logo (absolute) */}
+        {/* Floating desktop logo (hidden on small screens) */}
         <button
           onClick={scrollToTop}
           aria-label="Go to top"
-          className="absolute z-50 select-none -translate-y-1/2"
-          style={{
-            left: 'var(--logo-left)',
-            top: 'var(--logo-top)',
-            lineHeight: 0,
-          }}
+          className="hidden lg:block absolute z-50 select-none -translate-y-1/2"
+          style={{ left: 'var(--logo-left)', top: 'var(--logo-top)', lineHeight: 0 }}
         >
           <Image
             src="/assets/rad-dad-prints.png"
@@ -52,14 +48,31 @@ export default function Header({ onContact, onOpenGallery }) {
 
         {/* Nav */}
         <nav className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center w-full gap-4 sm:gap-10 relative">
-          {/* Hamburger (below lg) */}
-          <button
-            className="lg:hidden text-2xl focus:outline-none"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle navigation"
-          >
-            <FaBars />
-          </button>
+          {/* Mobile: hamburger + compact logo row */}
+          <div className="w-full lg:hidden -mr-12 -mt-2 -mb-6 flex items-center justify-start gap-3">
+            {/* Compact header logo for phones / iPad Mini portrait */}
+            <button
+              onClick={scrollToTop}
+              aria-label="Go to top"
+              className="shrink-0"
+            >
+              <Image
+                src="/assets/rad-dad-prints03.png"
+                alt="Rad Dad Prints"
+                width={136}
+                height={36}
+                className="h-18 w-auto object-contain"
+                priority
+              />
+            </button>
+            <button
+              className="text-2xl focus:outline-none"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="Toggle navigation"
+            >
+              <FaBars />
+            </button>
+          </div>
 
           {/* Links */}
           <ul
@@ -69,34 +82,22 @@ export default function Header({ onContact, onOpenGallery }) {
                         lg:mx-auto`}
           >
             <li>
-              <a
-                href="#print-designs"
-                className="rdp-navlink transition py-1 whitespace-nowrap"
-              >
+              <a href="#print-designs" className="rdp-navlink transition py-1 whitespace-nowrap">
                 Print Designs
               </a>
             </li>
             <li>
-              <a
-                href="#bundles-packages"
-                className="rdp-navlink transition py-1 whitespace-nowrap"
-              >
+              <a href="#bundles-packages" className="rdp-navlink transition py-1 whitespace-nowrap">
                 Bundles & Packages
               </a>
             </li>
             <li>
-              <a
-                href="#services"
-                className="rdp-navlink transition py-1"
-              >
+              <a href="#services" className="rdp-navlink transition py-1">
                 Services
               </a>
             </li>
             <li>
-              <button
-                onClick={onOpenGallery}
-                className="rdp-navlink transition py-1 whitespace-nowrap"
-              >
+              <button onClick={onOpenGallery} className="rdp-navlink transition py-1 whitespace-nowrap">
                 Gallery
               </button>
             </li>
@@ -104,11 +105,13 @@ export default function Header({ onContact, onOpenGallery }) {
 
           {/* Right: Theme + Contact */}
           <div className="flex gap-4 justify-center sm:justify-end items-center mt-2 sm:mt-0 lg:mr-4 xl:mr-8 2xl:-mr-70">
-            <ThemeToggle />
+            {/* Scale down theme toggle on mobile only */}
+            <div className="scale-75 sm:scale-100 origin-center">
+              <ThemeToggle />
+            </div>
+
             <div className="animated-link-wrapper">
-              <div className="animated-link-effect-2">
-                <div />
-              </div>
+              <div className="animated-link-effect-2"><div /></div>
               <button
                 onClick={() => onContact?.()}
                 className="animated-link-2 text-sm sm:text-base"
