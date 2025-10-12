@@ -22,7 +22,7 @@ import {
 type CatalogCategory = {
   id: string;
   label: string;
-  icon?: ReactNode; // <-- replaced coverEmoji with a real icon
+  icon?: ReactNode;
   blurb?: string;
   items: CatalogItem[];
 };
@@ -98,13 +98,6 @@ const ALL_CATEGORY: CatalogCategory = {
 const CATEGORIES_WITH_ALL: CatalogCategory[] = [ALL_CATEGORY, ...BASE_CATEGORIES];
 
 /* =======================
-   Slider constants
-======================= */
-const CARD_W = 400; // must match w-[400px]
-const GAP_PX = 32;  // Tailwind gap-8
-const GLOW_PAD = 20; // keep right-side glow visible in the viewport
-
-/* =======================
    Component
 ======================= */
 export default function PrintDesign() {
@@ -121,7 +114,10 @@ export default function PrintDesign() {
 
   // ====== SLIDING CAROUSEL STATE ======
   const total = BASE_CATEGORIES.length;
-  const [visibleCount, setVisibleCount] = useState(3); // 3 desktop, 2 tablet, 1 mobile
+
+  // responsive geometry
+  const [visibleCount, setVisibleCount] = useState(3);
+  const [geom, setGeom] = useState({ cardW: 400, gap: 32, glow: 20 }); // px
   const [isPaused, setIsPaused] = useState(false);
 
   // looped track: base × 3 (for infinite slide)
@@ -129,15 +125,22 @@ export default function PrintDesign() {
 
   // start from the middle copy so we can go left or right
   const [slideIdx, setSlideIdx] = useState(total);
-  const [noAnim, setNoAnim] = useState(false); // disable transition when snapping
+  const [noAnim, setNoAnim] = useState(false);
 
-  // responsive visible count
+  // responsive visible count + geometry
   useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
-      if (w < 640) setVisibleCount(1);
-      else if (w < 1024) setVisibleCount(2);
-      else setVisibleCount(3);
+      if (w < 640) {
+        setVisibleCount(1);
+        setGeom({ cardW: 260, gap: 16, glow: 12 });
+      } else if (w < 1024) {
+        setVisibleCount(2);
+        setGeom({ cardW: 320, gap: 24, glow: 16 });
+      } else {
+        setVisibleCount(3);
+        setGeom({ cardW: 400, gap: 32, glow: 20 });
+      }
     };
     compute();
     window.addEventListener('resize', compute);
@@ -229,8 +232,8 @@ export default function PrintDesign() {
   const go = (p: number) => setPage(Math.min(Math.max(1, p), pageCount));
 
   // slider geometry
-  const viewportPx = visibleCount * CARD_W + (visibleCount - 1) * GAP_PX;
-  const STEP = CARD_W + GAP_PX;
+  const viewportPx = visibleCount * geom.cardW + (visibleCount - 1) * geom.gap;
+  const STEP = geom.cardW + geom.gap;
   const x = -slideIdx * STEP;
 
   return (
@@ -272,27 +275,28 @@ export default function PrintDesign() {
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          {/* Prev */}
+          {/* Prev — visible on mobile, tucked in */}
           <button
             aria-label="Previous"
             onClick={prev}
             onFocus={() => setIsPaused(true)}
             onBlur={() => setIsPaused(false)}
-            className="hidden sm:flex absolute -left-10 top-1/2 -translate-y-1/2 z-10
+            className="flex absolute left-1 sm:-left-10 top-1/2 -translate-y-1/2 z-10
                        bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur p-2 rounded-full hover:bg-[var(--color-background)] transition"
+                       backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
 
           {/* Viewport */}
           <div
-            className="rdp-edge-mask overflow-x-hidden overflow-y-visible mx-auto pt-2 pb-8"
-            style={{ width: viewportPx + GLOW_PAD * 2, padding: `0 ${GLOW_PAD}px` }}
+            className="rdp-edge-mask overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6"
+            style={{ width: viewportPx + geom.glow * 2, padding: `0 ${geom.glow}px` }}
           >
             <div
-              className="flex items-stretch gap-8"
+              className="flex items-stretch"
               style={{
+                gap: `${geom.gap}px`,
                 transform: `translateX(${x}px)`,
                 transition: noAnim ? 'none' : 'transform 450ms ease-in-out',
                 willChange: 'transform',
@@ -304,29 +308,27 @@ export default function PrintDesign() {
                   key={`${c.id}-${i}`}
                   onClick={() => openModal(c.id)}
                   className="
-                    relative
-                    w-[400px] min-w-[400px] max-w-[400px]
-                    shrink-0 grow-0
-                    rounded-none
+                    relative shrink-0 grow-0 rounded-none
                     border border-[var(--color-foreground)]/15
                     bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
-                    transition
-                    card-glow
+                    transition card-glow
                   "
+                  style={{ width: geom.cardW, minWidth: geom.cardW, maxWidth: geom.cardW }}
                 >
-                  <div className="p-8 h-full min-h-[240px] flex flex-col items-center text-center">
-                    {/* icon row (fixed height) */}
-                    <div className="mb-4 h-[56px] flex items-center justify-center select-none text-brand-500">
-                      {c.icon ?? <Box className="w-14 h-14" />}
+                  <div className="p-4 sm:p-6 md:p-8 h-full min-h-[200px] sm:min-h-[220px] md:min-h-[240px] flex flex-col items-center text-center">
+                    {/* icon row */}
+                    <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
+                                    [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
+                      {c.icon ?? <Box className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14" />}
                     </div>
-                    {/* title row (fixed height) */}
-                    <div className="text-2xl font-semibold h-[32px] flex items-center justify-center">
+                    {/* title */}
+                    <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
                       {c.label}
                     </div>
-                    {/* blurb row */}
+                    {/* blurb */}
                     {c.blurb && (
                       <p
-                        className="opacity-70 text-sm mt-3 max-w-[32ch] h-[40px]"
+                        className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
                         style={{
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
@@ -343,15 +345,15 @@ export default function PrintDesign() {
             </div>
           </div>
 
-          {/* Next */}
+          {/* Next — visible on mobile, tucked in */}
           <button
             aria-label="Next"
             onClick={next}
             onFocus={() => setIsPaused(true)}
             onBlur={() => setIsPaused(false)}
-            className="hidden sm:flex absolute -right-10 top-1/2 -translate-y-1/2 z-10
+            className="flex absolute right-1 sm:-right-10 top-1/2 -translate-y-1/2 z-10
                        bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur p-2 rounded-full hover:bg-[var(--color-background)] transition"
+                       backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
