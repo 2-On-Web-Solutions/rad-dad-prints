@@ -137,7 +137,7 @@ export default function BundlesPackages() {
         setVisibleCount(1);
         setGeom({ cardW: 260, gap: 16, glow: 12 });
       } else if (w < 1024) {
-        setVisibleCount(2);
+        setVisibleCount(2); // iPad Mini => 2 cards
         setGeom({ cardW: 320, gap: 24, glow: 16 });
       } else {
         setVisibleCount(3);
@@ -235,10 +235,10 @@ export default function BundlesPackages() {
   const x = -slideIdx * STEP;
 
   return (
-    <section id="bundles-packages" className="py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] gap-10 items-start">
+    <section id="bundles-packages" className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] ipm-stack gap-10 items-start">
         {/* Left: Title + CTA */}
-        <div className="flex flex-col items-center md:items-start justify-center">
+        <div className="ipm-header flex flex-col items-center md:items-start justify-center">
           <h2
             className="
               font-extrabold
@@ -248,10 +248,10 @@ export default function BundlesPackages() {
               text-[var(--color-foreground)]
             "
           >
-            <span className="block text-center md:text-center">Bundles</span>
-            <span className="block text-center md:text-center">&amp; Packages</span>
+            <span className="block text-center">Bundles</span>
+            <span className="block text-center">&amp; Packages</span>
           </h2>
-          <div className="mt-3 flex ml-2 justify-center md:justify-start">
+          <div className="mt-3 flex justify-center">
             <button
               type="button"
               onClick={() => openModal(ALL_ID)}
@@ -271,13 +271,13 @@ export default function BundlesPackages() {
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          {/* Prev — visible on mobile, tucked in */}
+          {/* Prev — positioned by globals via .ipm-prev */}
           <button
             aria-label="Previous"
             onClick={prev}
             onFocus={() => setIsPaused(true)}
             onBlur={() => setIsPaused(false)}
-            className="flex absolute left-1 sm:-left-10 top-1/2 -translate-y-1/2 z-10
+            className="ipm-prev flex absolute left-1 sm:-left-10 top-1/2 -translate-y-1/2 z-10
                        bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
                        backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
           >
@@ -286,7 +286,7 @@ export default function BundlesPackages() {
 
           {/* Viewport with glow gutter + edge mask */}
           <div
-            className="overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6 rdp-edge-mask"
+            className="ipm-frame overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6 rdp-edge-mask"
             style={{
               width: viewportPx + geom.glow * 2,
               padding: `0 ${geom.glow}px`,
@@ -342,13 +342,13 @@ export default function BundlesPackages() {
             </div>
           </div>
 
-          {/* Next — moved a touch further right on mobile */}
+          {/* Next — positioned by globals via .ipm-next */}
           <button
             aria-label="Next"
             onClick={next}
             onFocus={() => setIsPaused(true)}
             onBlur={() => setIsPaused(false)}
-            className="flex absolute right-2 sm:-right-10 top-1/2 -translate-y-1/2 z-10
+            className="ipm-next flex absolute right-1 sm:-right-10 top-1/2 -translate-y-1/2 z-10
                        bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
                        backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
           >
@@ -441,7 +441,6 @@ export default function BundlesPackages() {
 
             {/* Scrollable body (grid + footer + pagination) */}
             <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
-              {/* Grid (filtered & paged) */}
               <div className="px-5 md:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {pagedItems.map((it) => (
                   <button

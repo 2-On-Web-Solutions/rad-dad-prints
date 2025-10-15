@@ -3,22 +3,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import ItemModal, { type CatalogItem } from './ItemModal';
 import {
-  Trophy,
-  ToyBrick,
-  Landmark,
-  Home,
-  Wrench,
-  Shield,
-  GraduationCap,
-  Sparkles,
-  Box,
-  ChevronLeft,
-  ChevronRight,
+  Trophy, ToyBrick, Landmark, Home, Wrench, Shield, GraduationCap,
+  Sparkles, Box, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
-/* =======================
-   Types
-======================= */
 type CatalogCategory = {
   id: string;
   label: string;
@@ -27,9 +15,6 @@ type CatalogCategory = {
   items: CatalogItem[];
 };
 
-/* =======================
-   Data
-======================= */
 const BASE_CATEGORIES: CatalogCategory[] = [
   {
     id: 'sports',
@@ -86,7 +71,6 @@ const BASE_CATEGORIES: CatalogCategory[] = [
   { id: 'education', label: 'Education', icon: <GraduationCap className="w-14 h-14" />, blurb: 'Classroom aids, models.', items: [{ id: 'ed-1', title: 'Math Shapes Set', priceFrom: 'From $12' }] },
 ];
 
-// "All" virtual category
 const ALL_ID = 'all';
 const ALL_CATEGORY: CatalogCategory = {
   id: ALL_ID,
@@ -97,37 +81,25 @@ const ALL_CATEGORY: CatalogCategory = {
 };
 const CATEGORIES_WITH_ALL: CatalogCategory[] = [ALL_CATEGORY, ...BASE_CATEGORIES];
 
-/* =======================
-   Component
-======================= */
 export default function PrintDesign() {
-  // modal controls
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string>(ALL_ID);
 
   const [itemOpen, setItemOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<CatalogItem | null>(null);
 
-  // search
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
 
-  // ====== SLIDING CAROUSEL STATE ======
   const total = BASE_CATEGORIES.length;
-
-  // responsive geometry
   const [visibleCount, setVisibleCount] = useState(3);
-  const [geom, setGeom] = useState({ cardW: 400, gap: 32, glow: 20 }); // px
+  const [geom, setGeom] = useState({ cardW: 400, gap: 32, glow: 20 });
   const [isPaused, setIsPaused] = useState(false);
 
-  // looped track: base × 3 (for infinite slide)
   const loop = useMemo(() => [...BASE_CATEGORIES, ...BASE_CATEGORIES, ...BASE_CATEGORIES], []);
-
-  // start from the middle copy so we can go left or right
   const [slideIdx, setSlideIdx] = useState(total);
   const [noAnim, setNoAnim] = useState(false);
 
-  // responsive visible count + geometry
   useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
@@ -147,22 +119,15 @@ export default function PrintDesign() {
     return () => window.removeEventListener('resize', compute);
   }, []);
 
-  // auto-rotate
   useEffect(() => {
     if (isPaused) return;
     const id = setInterval(() => setSlideIdx((i) => i + 1), 4200);
     return () => clearInterval(id);
   }, [isPaused]);
 
-  // infinite loop snap
   useEffect(() => {
-    if (slideIdx >= 2 * total) {
-      setNoAnim(true);
-      setSlideIdx((i) => i - total);
-    } else if (slideIdx < total) {
-      setNoAnim(true);
-      setSlideIdx((i) => i + total);
-    }
+    if (slideIdx >= 2 * total) { setNoAnim(true); setSlideIdx((i) => i - total); }
+    else if (slideIdx < total) { setNoAnim(true); setSlideIdx((i) => i + total); }
   }, [slideIdx, total]);
 
   useEffect(() => {
@@ -174,32 +139,26 @@ export default function PrintDesign() {
   const next = () => setSlideIdx((i) => i + 1);
   const prev = () => setSlideIdx((i) => i - 1);
 
-  // derived active category for modal grid
   const activeCategory = useMemo(
     () => CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId) ?? ALL_CATEGORY,
     [activeCategoryId]
   );
 
-  // ===== Modal keyboard helpers
   useEffect(() => {
     if (!categoryOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setCategoryOpen(false);
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        searchRef.current?.focus();
+        e.preventDefault(); searchRef.current?.focus();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [categoryOpen]);
 
-  // Lock page scroll when the modal is open
   useEffect(() => {
     document.body.style.overflow = categoryOpen ? 'hidden' : '';
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, [categoryOpen]);
 
   const openModal = (startId: string = ALL_ID) => {
@@ -216,159 +175,125 @@ export default function PrintDesign() {
     return items.filter((it) => it.title.toLowerCase().includes(q));
   }, [query, activeCategory]);
 
-  /* ===== Pagination for modal grid ===== */
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(9);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, activeCategoryId]);
+  useEffect(() => { setPage(1); }, [query, activeCategoryId]);
 
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, filteredItems.length);
   const pagedItems = filteredItems.slice(start, end);
-
   const go = (p: number) => setPage(Math.min(Math.max(1, p), pageCount));
 
-  // slider geometry
   const viewportPx = visibleCount * geom.cardW + (visibleCount - 1) * geom.gap;
   const STEP = geom.cardW + geom.gap;
   const x = -slideIdx * STEP;
 
   return (
-    <section id="print-designs" className="py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto">
-      {/* Left title + button | Right carousel */}
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] gap-10 items-start">
-        {/* Left: headline + animated button */}
-        <div className="flex flex-col items-center md:items-start justify-center">
-          <h2
-            className="
-              font-extrabold
-              leading-[1.15]
-              tracking-[-0.02em]
-              text-[clamp(1.75rem,3.5vw+0.5rem,3rem)]
-              text-[var(--color-foreground)]
-            "
-          >
-            <span className="block text-center md:text-center">Print</span>
-            <span className="block text-center md:text-center">Designs</span>
+    <section id="print-designs" className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] ipm-stack gap-10 items-start">
+        {/* Header */}
+        <div className="ipm-header flex flex-col items-center md:items-start justify-center">
+          <h2 className="font-extrabold leading-[1.15] tracking-[-0.02em] text-[clamp(1.75rem,3.5vw+0.5rem,3rem)] text-[var(--color-foreground)]">
+            <span className="block text-center">Print</span>
+            <span className="block text-center">Designs</span>
           </h2>
-
-          <div className="mt-3 flex ml-2 justify-center md:justify-start">
+          <div className="mt-3 flex justify-center">
             <button
               type="button"
               onClick={() => openModal(ALL_ID)}
               className="animated-link relative inline-flex items-center justify-center px-4 py-2 rounded-md"
             >
               <span className="relative z-10 text-sm">Browse All</span>
-              <i aria-hidden className="animated-link-effect">
-                <div />
-              </i>
+              <i aria-hidden className="animated-link-effect"><div /></i>
             </button>
           </div>
         </div>
 
-        {/* Right: SLIDING CAROUSEL */}
-        <div
-          className="relative overflow-visible"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-        >
-          {/* Prev — visible on mobile, tucked in */}
-          <button
-            aria-label="Previous"
-            onClick={prev}
-            onFocus={() => setIsPaused(true)}
-            onBlur={() => setIsPaused(false)}
-            className="flex absolute left-1 sm:-left-10 top-1/2 -translate-y-1/2 z-10
-                       bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-
-          {/* Viewport */}
-          <div
-            className="rdp-edge-mask overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6"
-            style={{ width: viewportPx + geom.glow * 2, padding: `0 ${geom.glow}px` }}
-          >
-            <div
-              className="flex items-stretch"
-              style={{
-                gap: `${geom.gap}px`,
-                transform: `translateX(${x}px)`,
-                transition: noAnim ? 'none' : 'transform 450ms ease-in-out',
-                willChange: 'transform',
-                width: 'max-content',
-              }}
+        {/* Carousel */}
+        <div className="relative overflow-visible" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
+          <div className="ipm-frame relative mx-auto" style={{ width: viewportPx + geom.glow * 2 }}>
+            {/* Prev */}
+            <button
+              aria-label="Previous"
+              onClick={prev}
+              onFocus={() => setIsPaused(true)}
+              onBlur={() => setIsPaused(false)}
+              className="ipm-prev flex absolute left-1 sm:-left-10 top-1/2 -translate-y-1/2 z-10
+                         bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
+                         backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
             >
-              {loop.map((c, i) => (
-                <button
-                  key={`${c.id}-${i}`}
-                  onClick={() => openModal(c.id)}
-                  className="
-                    relative shrink-0 grow-0 rounded-none
-                    border border-[var(--color-foreground)]/15
-                    bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
-                    transition card-glow
-                  "
-                  style={{ width: geom.cardW, minWidth: geom.cardW, maxWidth: geom.cardW }}
-                >
-                  <div className="p-4 sm:p-6 md:p-8 h-full min-h-[200px] sm:min-h-[220px] md:min-h-[240px] flex flex-col items-center text-center">
-                    {/* icon row */}
-                    <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
-                                    [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
-                      {c.icon ?? <Box className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14" />}
-                    </div>
-                    {/* title */}
-                    <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
-                      {c.label}
-                    </div>
-                    {/* blurb */}
-                    {c.blurb && (
-                      <p
-                        className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
-                        style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {c.blurb}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+              <ChevronLeft className="w-5 h-5" />
+            </button>
 
-          {/* Next — visible on mobile, tucked in */}
-          <button
-            aria-label="Next"
-            onClick={next}
-            onFocus={() => setIsPaused(true)}
-            onBlur={() => setIsPaused(false)}
-            className="flex absolute right-1 sm:-right-10 top-1/2 -translate-y-1/2 z-10
-                       bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+            {/* Viewport */}
+            <div
+              className="rdp-edge-mask overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6"
+              style={{ width: viewportPx + geom.glow * 2, padding: `0 ${geom.glow}px` }}
+            >
+              <div
+                className="flex items-stretch relative z-0"
+                style={{
+                  gap: `${geom.gap}px`,
+                  transform: `translateX(${x}px)`,
+                  transition: noAnim ? 'none' : 'transform 450ms ease-in-out',
+                  willChange: 'transform',
+                  width: 'max-content',
+                }}
+              >
+                {loop.map((c, i) => (
+                  <button
+                    key={`${c.id}-${i}`}
+                    type="button"
+                    onClickCapture={(e) => { e.stopPropagation(); openModal(c.id); }}
+                    className="relative z-20 pointer-events-auto shrink-0 grow-0 rounded-none
+                               border border-[var(--color-foreground)]/15
+                               bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
+                               transition card-glow"
+                    style={{ width: geom.cardW, minWidth: geom.cardW, maxWidth: geom.cardW, WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <div className="p-4 sm:p-6 md:p-8 h-full min-h-[200px] sm:min-h-[220px] md:min-h-[240px] flex flex-col items-center text-center">
+                      <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
+                                      [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
+                        {c.icon ?? <Box className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14" />}
+                      </div>
+                      <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
+                        {c.label}
+                      </div>
+                      {c.blurb && (
+                        <p className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
+                           style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {c.blurb}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Next */}
+            <button
+              aria-label="Next"
+              onClick={next}
+              onFocus={() => setIsPaused(true)}
+              onBlur={() => setIsPaused(false)}
+              className="ipm-next flex absolute right-1 sm:-right-10 top-1/2 -translate-y-1/2 z-10
+                         bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
+                         backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Category Modal (tabs + search) */}
+      {/* ===== Category Modal (RESTORED) ===== */}
       {categoryOpen && (
         <div
           className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 p-4 md:p-8"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setCategoryOpen(false);
-          }}
-          aria-modal="true"
-          role="dialog"
+          onClick={(e) => { if (e.target === e.currentTarget) setCategoryOpen(false); }}
+          aria-modal="true" role="dialog"
         >
           <div className="relative w-full max-w-5xl bg-[var(--color-background)] text-[var(--color-foreground)] rounded-xl shadow-2xl
                           flex flex-col overflow-hidden h-[80vh] md:h-[85vh] min-h-[560px]">
@@ -394,11 +319,7 @@ export default function PrintDesign() {
                     return (
                       <button
                         key={cat.id}
-                        onClick={() => {
-                          setActiveCategoryId(cat.id);
-                          setQuery('');
-                          setPage(1);
-                        }}
+                        onClick={() => { setActiveCategoryId(cat.id); setQuery(''); setPage(1); }}
                         className={`whitespace-nowrap px-3 py-1.5 rounded-full border text-sm transition ${
                           active
                             ? 'bg-[var(--color-foreground)] text-[var(--color-background)] border-[var(--color-foreground)]'
@@ -424,10 +345,7 @@ export default function PrintDesign() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-60 select-none">🔎</span>
                   {query && (
                     <button
-                      onClick={() => {
-                        setQuery('');
-                        searchRef.current?.focus();
-                      }}
+                      onClick={() => { setQuery(''); searchRef.current?.focus(); }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-lg opacity-70 hover:opacity-100"
                       aria-label="Clear search"
                     >
@@ -445,10 +363,7 @@ export default function PrintDesign() {
                 {pagedItems.map((it) => (
                   <button
                     key={it.id}
-                    onClick={() => {
-                      setActiveItem(it);
-                      setItemOpen(true);
-                    }}
+                    onClick={() => { setActiveItem(it); setItemOpen(true); }}
                     className="text-left rounded-lg border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.04] hover:bg-[var(--color-foreground)]/[0.08] transition shadow-md"
                   >
                     <div className="h-40 md:h-48 rounded-t-lg bg-gradient-to-br from-purple-500/40 to-indigo-600/30 relative overflow-hidden" />
@@ -459,7 +374,9 @@ export default function PrintDesign() {
                   </button>
                 ))}
                 {!filteredItems.length && (
-                  <div className="col-span-full opacity-70 text-sm">No matches for “{query}”. Try a different term or switch tabs above.</div>
+                  <div className="col-span-full opacity-70 text-sm">
+                    No matches for “{query}”. Try a different term or switch tabs above.
+                  </div>
                 )}
               </div>
 
@@ -477,15 +394,10 @@ export default function PrintDesign() {
                       <select
                         className="ml-1 rounded-md border border-[var(--color-foreground)]/20 bg-transparent px-2 py-1 text-sm"
                         value={pageSize}
-                        onChange={(e) => {
-                          setPageSize(Number(e.target.value));
-                          setPage(1);
-                        }}
+                        onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
                       >
                         {[6, 9, 12, 18].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
+                          <option key={n} value={n}>{n}</option>
                         ))}
                       </select>
                     </label>
@@ -540,12 +452,14 @@ export default function PrintDesign() {
 
               {/* Footer tip */}
               <div className="px-5 md:px-8 pb-6">
-                <p className="text-sm opacity-70">Tip: These are examples. We can customize sizing, colors, and materials for your project.</p>
+                <p className="text-sm opacity-70">
+                  Tip: These are examples. We can customize sizing, colors, and materials for your project.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Nested Item Modal */}
+          {/* Nested Item Modal inside the category modal */}
           <ItemModal open={itemOpen} item={activeItem} onClose={() => setItemOpen(false)} />
         </div>
       )}

@@ -6,13 +6,9 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Oswald } from 'next/font/google';
 
-const taglineFont = Oswald({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-});
+const taglineFont = Oswald({ subsets: ['latin'], weight: ['400','500','600'] });
 
 /* =====================  MOBILE TUNABLES  ===================== */
-
 const MOBILE_LOGO = {
   maxW: 'max-w-[50vw]',
   aspect: 'aspect-[3/2]',
@@ -24,7 +20,6 @@ const MOBILE_LOGO = {
   xNudge: 'translate-x-0',
   yNudge: 'translate-y-0',
 };
-
 const MOBILE_VIDEO = {
   maxW: 'max-w-[69vw]',
   aspect: 'aspect-[12/16]',
@@ -34,10 +29,9 @@ const MOBILE_VIDEO = {
 };
 
 /* =====================  CLASS BUILDERS  ===================== */
-
 const mobileLogoClass = [
   'block lg:hidden',
-  'relative',
+  'relative ipm-logo', // <-- iPad Mini target
   MOBILE_LOGO.z,
   MOBILE_LOGO.align,
   MOBILE_LOGO.offset,
@@ -53,7 +47,7 @@ const mobileLogoClass = [
 ].join(' ');
 
 const mobileVideoFrameClass = [
-  'relative p-[2px]',
+  'relative p-[2px] ipm-video', // <-- iPad Mini target
   MOBILE_VIDEO.z,
   'bg-gradient-to-r from-[#13c8df] via-[#a78bfa] to-[#6b04af]',
   'shadow-[0_0_35px_rgba(19,200,223,0.45)]',
@@ -65,23 +59,22 @@ const mobileVideoFrameClass = [
 ].join(' ');
 
 /* =====================  COMPONENT  ===================== */
-
 export default function Hero() {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const logoSrc =
-    mounted && theme === 'light'
-      ? '/assets/rad-dad-prints.png'
-      : '/assets/rad-dad-prints.png';
+  const logoSrc = mounted && theme === 'light'
+    ? '/assets/rad-dad-prints.png'
+    : '/assets/rad-dad-prints.png';
 
   return (
     <section
       className="
+        ipm-scope                      /* <-- iPad Mini scope */
         relative w-full min-h-[100svh]
         px-4 sm:px-6 lg:px-8
-        pt-24 sm:pt-28 md:pt-32 lg:pt-8
+        pt-24 sm:pt-28 md:pt-32 lg:pt-8 ipm-hero-pad
         pb-20 lg:pb-8
         flex flex-col items-center
       "
@@ -149,7 +142,7 @@ export default function Hero() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, ease: 'easeOut', delay: 0.5 }}
         className="
-          order-10 w-full max-w-3xl mx-auto mt-4 sm:mt-8 md:mt-10 text-center
+          order-10 w-full max-w-3xl mx-auto mt-4 sm:mt-8 md:mt-10 text-center ipm-tagline
           lg:absolute lg:right-20 lg:top-160 lg:text-right lg:max-w-xl lg:mt-0
         "
       >
@@ -178,7 +171,7 @@ export default function Hero() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut', delay: 0.35 }}
         className="
-          order-20 relative
+          order-20 relative ipm-cta
           mt-6 sm:mt-8 md:mt-10
           w-full max-w-[min(90vw,420px)]
           flex flex-col items-center gap-2
@@ -192,8 +185,8 @@ export default function Hero() {
             className="
               group flex items-center justify-center gap-1.5 sm:gap-2
               rounded-full
-              px-3 py-3 sm:px-5 sm:py-2.5     /* taller on mobile, width same */
-              min-h-[30px]                     /* nice tap size */
+              px-3 py-3 sm:px-5 sm:py-2.5
+              min-h-[30px]
               bg-white/90 dark:bg-black/70 backdrop-blur-md
               text-neutral-900 dark:text-white
               font-semibold transition-all
