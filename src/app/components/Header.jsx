@@ -21,7 +21,7 @@ export default function Header({ onContact, onOpenGallery }) {
     <header className="fixed top-0 left-0 w-full bg-neutral-800 text-white py-4 px-4 sm:py-6 sm:px-8 lg:px-16 z-50 shadow-md overflow-visible">
       {/* Positioning context for dropdown */}
       <div
-        className="relative max-w-7xl mx-auto"
+        className="rdp-header relative max-w-7xl mx-auto"
         style={{
           '--logo-left': '-300px',
           '--logo-top': '225%',
@@ -48,14 +48,14 @@ export default function Header({ onContact, onOpenGallery }) {
 
         {/* Nav */}
         {/* flex-wrap lets the md dropdown wrap onto the next line */}
-          <nav
-            className="
-              max-w-7xl mx-auto flex flex-col sm:flex-row flex-wrap items-center w-full
-              gap-x-4 sm:gap-x-10 gap-y-1 sm:gap-y-2
-              relative
-              md:pb-0 md:-mb-2 md:gap-y-0  /* <— removes bottom gap/padding on iPad Mini */
-            "
-          >
+        <nav
+          className="
+            max-w-7xl mx-auto flex flex-col sm:flex-row flex-wrap items-center w-full
+            gap-x-4 sm:gap-x-10 gap-y-1 sm:gap-y-2
+            relative
+            md:pb-0 md:-mb-2 md:gap-y-0
+          "
+        >
           {/* ===== Mobile ONLY (≤767px) — unchanged (logo then hamburger) ===== */}
           <div className="w-full md:hidden -mr-12 -mt-2 -mb-6 flex items-center justify-start gap-3">
             <button onClick={scrollToTop} aria-label="Go to top" className="shrink-0">
@@ -104,9 +104,9 @@ export default function Header({ onContact, onOpenGallery }) {
             </button>
           </div>
 
-          {/* ===== Desktop Inline Links (unchanged) ===== */}
+          {/* ===== Desktop Inline Links ===== */}
           <ul
-            className={`flex-col lg:flex-row gap-4 lg:gap-10 xl:gap-20 2xl:gap-40
+            className={`rdp-links flex-col lg:flex-row gap-4 lg:gap-10 xl:gap-20 2xl:gap-40
                         text-center text-lg font-semibold tracking-wide transition-all duration-300
                         ${isOpen ? 'flex' : 'hidden'} md:hidden lg:flex
                         lg:mx-auto`}
@@ -133,15 +133,16 @@ export default function Header({ onContact, onOpenGallery }) {
             </li>
           </ul>
 
-          {/* ===== Right: Theme + Contact (inline on md, unchanged elsewhere) ===== */}
-            <div
-              className="
-                flex gap-4 justify-center sm:justify-end items-center
-                mt-3 -mb-2 sm:mt-0
-                md:-mt-1 md:mb-0 md:ml-auto
-                lg:mr-4 xl:mr-8 2xl:-mr-70
-              "
-            >
+          {/* ===== Right: Theme + Contact ===== */}
+          <div
+            className="
+              rdp-tools
+              flex gap-4 justify-center sm:justify-end items-center
+              mt-3 -mb-2 sm:mt-0
+              md:-mt-1 md:mb-0 md:ml-auto
+              lg:mr-4 xl:mr-8 2xl:-mr-70
+            "
+          >
             <div className="scale-75 sm:scale-100 origin-center">
               <ThemeToggle />
             </div>

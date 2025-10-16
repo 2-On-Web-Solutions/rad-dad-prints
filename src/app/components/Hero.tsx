@@ -119,9 +119,10 @@ export default function Hero() {
             />
           </div>
 
-          {/* Floating logo (desktop only) */}
+          {/* Floating logo (desktop only) — add stable class hook */}
           <div
             className="
+              ipm-right-tile
               hidden lg:block
               absolute left-full -top-20 -ml-20
               p-[2px] bg-gradient-to-r from-[#13c8df] via-[#a78bfa] to-[#6b04af]
@@ -178,8 +179,8 @@ export default function Hero() {
           lg:absolute lg:-left-[4%] lg:top-[69%] lg:w-[360px]
         "
       >
-        {/* gradient ring */}
-        <div className="inline-block p-[1.5px] rounded-full bg-gradient-to-r from-[#13c8df] via-[#a78bfa] to-[#6b04af] shadow-[0_0_28px_rgba(19,200,223,0.45)]">
+        {/* gradient ring (PILL WRAPPER HOOK) */}
+        <div className="ipm-cc inline-block p-[1.5px] rounded-full bg-gradient-to-r from-[#13c8df] via-[#a78bfa] to-[#6b04af] shadow-[0_0_28px_rgba(19,200,223,0.45)]">
           <a
             href="/creative-corner"
             className="
