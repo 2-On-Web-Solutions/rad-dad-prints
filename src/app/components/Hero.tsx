@@ -156,12 +156,12 @@ export default function Hero() {
             uppercase
           `}
         >
-          <span className="text-[var(--color-foreground)] lg:text-white lg:[text-shadow:_0_0_10px_rgba(0,0,0,.35)]">
-            Custom 3D Printing&nbsp;–&nbsp;Creative Ideas.
+          <span className="text-[var(--color-foreground)]">
+            You Think It I Print It!&nbsp;&nbsp;&nbsp;&nbsp;
           </span>
           <br />
           <span className="text-[var(--color-foreground)]">
-            With Results You&nbsp;Will&nbsp;Love!
+            Custom&nbsp;3D&nbsp;Printing
           </span>
         </p>
       </motion.div>

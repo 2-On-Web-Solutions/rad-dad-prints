@@ -15,9 +15,9 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-/** =======================
- *  Types
- *  ======================= */
+/* =======================
+   Types
+======================= */
 type CatalogCategory = {
   id: string;
   label: string;
@@ -26,9 +26,9 @@ type CatalogCategory = {
   items: CatalogItem[];
 };
 
-/** =======================
- *  Data (Bundles & Packages)
- *  ======================= */
+/* =======================
+   Data (Bundles & Packages)
+======================= */
 const BASE_CATEGORIES: CatalogCategory[] = [
   {
     id: 'starter',
@@ -92,7 +92,7 @@ const BASE_CATEGORIES: CatalogCategory[] = [
   },
 ];
 
-// "All" virtual category
+// Virtual “All” tab
 const ALL_ID = 'all';
 const ALL_CATEGORY: CatalogCategory = {
   id: ALL_ID,
@@ -103,9 +103,9 @@ const ALL_CATEGORY: CatalogCategory = {
 };
 const CATEGORIES_WITH_ALL: CatalogCategory[] = [ALL_CATEGORY, ...BASE_CATEGORIES];
 
-/** =======================
- *  Component
- *  ======================= */
+/* =======================
+   Component
+======================= */
 export default function BundlesPackages() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string>(ALL_ID);
@@ -116,47 +116,68 @@ export default function BundlesPackages() {
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
 
-  // ===== SLIDING (infinite) CAROUSEL =====
+  // ===== Carousel geometry (match PrintDesign) =====
   const total = BASE_CATEGORIES.length;
   const loop = useMemo(() => [...BASE_CATEGORIES, ...BASE_CATEGORIES, ...BASE_CATEGORIES], []);
 
-  // responsive geometry
   const [visibleCount, setVisibleCount] = useState(3);
-  const [geom, setGeom] = useState({ cardW: 400, gap: 32, glow: 20 }); // px
-  const [isPaused, setIsPaused] = useState(false);
+  const [geom, setGeom] = useState({ cardW: 400, gap: 32, glow: 20 });
+  const [arrow, setArrow] = useState({ left: -10, right: -10 });
 
-  // start from middle copy
+  const [isPaused, setIsPaused] = useState(false);
   const [slideIdx, setSlideIdx] = useState(total);
   const [noAnim, setNoAnim] = useState(false);
 
-  // responsive counts + sizes
+  // ——— same breakpoint/profile logic as PrintDesign ———
   useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
+      const h = window.innerHeight;
+      const landscape = w > h;
+
+      // iPad Mini landscape (≈1024×768): show 3 smaller cards and push left arrow out
+      const isIpadMiniLandscape =
+        landscape && w >= 990 && w <= 1060 && h >= 700 && h <= 820;
+
+      if (isIpadMiniLandscape) {
+        setVisibleCount(3);
+        setGeom({ cardW: 300, gap: 16, glow: 16 });
+        setArrow({ left: -128, right: 12 });
+        return;
+      }
+
       if (w < 640) {
         setVisibleCount(1);
         setGeom({ cardW: 260, gap: 16, glow: 12 });
+        setArrow({ left: -10, right: -10 });
       } else if (w < 1024) {
-        setVisibleCount(2); // iPad Mini => 2 cards
+        setVisibleCount(2);
         setGeom({ cardW: 320, gap: 24, glow: 16 });
+        setArrow({ left: -10, right: -10 });
       } else {
         setVisibleCount(3);
         setGeom({ cardW: 400, gap: 32, glow: 20 });
+        setArrow({ left: -10, right: -10 });
       }
     };
+
     compute();
     window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
+    window.addEventListener('orientationchange', compute);
+    return () => {
+      window.removeEventListener('resize', compute);
+      window.removeEventListener('orientationchange', compute);
+    };
   }, []);
 
-  // auto-rotate
+  // autoplay
   useEffect(() => {
     if (isPaused) return;
     const id = setInterval(() => setSlideIdx((i) => i + 1), 4200);
     return () => clearInterval(id);
   }, [isPaused]);
 
-  // infinite snap
+  // seamless loop
   useEffect(() => {
     if (slideIdx >= 2 * total) {
       setNoAnim(true);
@@ -176,13 +197,12 @@ export default function BundlesPackages() {
   const next = () => setSlideIdx((i) => i + 1);
   const prev = () => setSlideIdx((i) => i - 1);
 
-  // active category (modal)
   const activeCategory = useMemo(
     () => CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId) ?? ALL_CATEGORY,
     [activeCategoryId]
   );
 
-  // modal keyboard helpers
+  // modal helpers
   useEffect(() => {
     if (!categoryOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -196,7 +216,6 @@ export default function BundlesPackages() {
     return () => document.removeEventListener('keydown', onKey);
   }, [categoryOpen]);
 
-  // lock page scroll while modal open
   useEffect(() => {
     document.body.style.overflow = categoryOpen ? 'hidden' : '';
     return () => {
@@ -211,6 +230,7 @@ export default function BundlesPackages() {
     setCategoryOpen(true);
   };
 
+  // filter + pagination
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     const items = activeCategory.items;
@@ -218,10 +238,11 @@ export default function BundlesPackages() {
     return items.filter((it) => it.title.toLowerCase().includes(q));
   }, [query, activeCategory]);
 
-  // pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(9);
-  useEffect(() => setPage(1), [query, activeCategoryId]);
+  useEffect(() => {
+    setPage(1);
+  }, [query, activeCategoryId]);
 
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const start = (page - 1) * pageSize;
@@ -229,25 +250,20 @@ export default function BundlesPackages() {
   const pagedItems = filteredItems.slice(start, end);
   const go = (p: number) => setPage(Math.min(Math.max(1, p), pageCount));
 
-  // geometry
+  // track geometry
   const viewportPx = visibleCount * geom.cardW + (visibleCount - 1) * geom.gap;
   const STEP = geom.cardW + geom.gap;
   const x = -slideIdx * STEP;
 
   return (
-    <section id="bundles-packages" className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto">
+    <section
+      id="bundles-packages"
+      className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto"
+    >
       <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] ipm-stack gap-10 items-start">
-        {/* Left: Title + CTA */}
+        {/* Header */}
         <div className="ipm-header flex flex-col items-center md:items-start justify-center">
-          <h2
-            className="
-              font-extrabold
-              leading-[1.15]
-              tracking-[-0.02em]
-              text-[clamp(1.75rem,3.5vw+0.5rem,3rem)]
-              text-[var(--color-foreground)]
-            "
-          >
+          <h2 className="font-extrabold leading-[1.15] tracking-[-0.02em] text-[clamp(1.75rem,3.5vw+0.5rem,3rem)] text-[var(--color-foreground)]">
             <span className="block text-center">Bundles</span>
             <span className="block text-center">&amp; Packages</span>
           </h2>
@@ -265,99 +281,106 @@ export default function BundlesPackages() {
           </div>
         </div>
 
-        {/* Right: SLIDING CAROUSEL */}
+        {/* Carousel (mirrors PrintDesign) */}
         <div
           className="relative overflow-visible"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          {/* Prev — positioned by globals via .ipm-prev */}
-          <button
-            aria-label="Previous"
-            onClick={prev}
-            onFocus={() => setIsPaused(true)}
-            onBlur={() => setIsPaused(false)}
-            className="ipm-prev flex absolute left-1 sm:-left-10 top-1/2 -translate-y-1/2 z-10
-                       bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-
-          {/* Viewport with glow gutter + edge mask */}
-          <div
-            className="ipm-frame overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6 rdp-edge-mask"
-            style={{
-              width: viewportPx + geom.glow * 2,
-              padding: `0 ${geom.glow}px`,
-              ['--rdp-mask-edge' as string]: 'clamp(10px, 1.2vw, 18px)',
-            }}
-          >
-            <div
-              className="flex items-stretch"
-              style={{
-                gap: `${geom.gap}px`,
-                transform: `translateX(${x}px)`,
-                transition: noAnim ? 'none' : 'transform 450ms ease-in-out',
-                willChange: 'transform',
-                width: 'max-content',
-              }}
+          <div className="ipm-frame relative mx-auto" style={{ width: viewportPx + geom.glow * 2 }}>
+            {/* Prev */}
+            <button
+              aria-label="Previous"
+              onClick={prev}
+              onFocus={() => setIsPaused(true)}
+              onBlur={() => setIsPaused(false)}
+              className="ipm-prev flex absolute top-1/2 -translate-y-1/2 z-10
+                         bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
+                         backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
+              style={{ left: `${arrow.left}px` }}
             >
-              {loop.map((c, i) => (
-                <button
-                  key={`${c.id}-${i}`}
-                  onClick={() => openModal(c.id)}
-                  className="
-                    relative shrink-0 grow-0 rounded-none
-                    border border-[var(--color-foreground)]/15
-                    bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
-                    transition card-glow
-                  "
-                  style={{ width: geom.cardW, minWidth: geom.cardW, maxWidth: geom.cardW }}
-                >
-                  <div className="p-4 sm:p-6 md:p-8 h-full min-h-[200px] sm:min-h-[220px] md:min-h-[240px] flex flex-col items-center text-center">
-                    <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
-                                    [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
-                      {c.icon ?? <Box className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14" />}
-                    </div>
-                    <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
-                      {c.label}
-                    </div>
-                    {c.blurb && (
-                      <p
-                        className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
-                        style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {c.blurb}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+              <ChevronLeft className="w-5 h-5" />
+            </button>
 
-          {/* Next — positioned by globals via .ipm-next */}
-          <button
-            aria-label="Next"
-            onClick={next}
-            onFocus={() => setIsPaused(true)}
-            onBlur={() => setIsPaused(false)}
-            className="ipm-next flex absolute right-1 sm:-right-10 top-1/2 -translate-y-1/2 z-10
-                       bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
-                       backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+            {/* Viewport */}
+            <div
+              className="rdp-edge-mask overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6"
+              style={{ width: viewportPx + geom.glow * 2, padding: `0 ${geom.glow}px` }}
+            >
+              <div
+                className="flex items-stretch relative z-0"
+                style={{
+                  gap: `${geom.gap}px`,
+                  transform: `translateX(${x}px)`,
+                  transition: noAnim ? 'none' : 'transform 450ms ease-in-out',
+                  willChange: 'transform',
+                  width: 'max-content',
+                }}
+              >
+                {loop.map((c, i) => (
+                  <button
+                    key={`${c.id}-${i}`}
+                    type="button"
+                    onClickCapture={(e) => {
+                      e.stopPropagation();
+                      openModal(c.id);
+                    }}
+                    className="relative z-20 pointer-events-auto shrink-0 grow-0 rounded-none
+                               border border-[var(--color-foreground)]/15
+                               bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
+                               transition card-glow"
+                    style={{
+                      width: geom.cardW,
+                      minWidth: geom.cardW,
+                      maxWidth: geom.cardW,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <div className="p-4 sm:p-6 md:p-8 h-full min-h-[200px] sm:min-h-[220px] md:min-h-[240px] flex flex-col items-center text-center">
+                      <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
+                                      [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
+                        {c.icon ?? <Box className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14" />}
+                      </div>
+                      <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
+                        {c.label}
+                      </div>
+                      {c.blurb && (
+                        <p
+                          className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {c.blurb}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Next */}
+            <button
+              aria-label="Next"
+              onClick={next}
+              onFocus={() => setIsPaused(true)}
+              onBlur={() => setIsPaused(false)}
+              className="ipm-next flex absolute top-1/2 -translate-y-1/2 z-10
+                         bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
+                         backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
+              style={{ right: `${arrow.right}px` }}
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Modal (tabs + search) */}
+      {/* ===== Category Modal ===== */}
       {categoryOpen && (
         <div
           className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 p-4 md:p-8"
@@ -373,7 +396,9 @@ export default function BundlesPackages() {
             <div className="sticky top-0 z-10 bg-[var(--color-background)]/95 backdrop-blur border-b border-[var(--color-foreground)]/10 px-5 md:px-8 pt-4 pb-3 rounded-t-xl">
               <div className="flex items-center gap-3">
                 <div className="text-2xl select-none">
-                  {CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.icon ?? <Box className="w-6 h-6" />}
+                  {CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.icon ?? (
+                    <Box className="w-6 h-6" />
+                  )}
                 </div>
                 <h3 className="text-2xl font-semibold">
                   {CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.label}
@@ -439,7 +464,7 @@ export default function BundlesPackages() {
               </div>
             </div>
 
-            {/* Scrollable body (grid + footer + pagination) */}
+            {/* Body (grid + pagination) */}
             <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
               <div className="px-5 md:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {pagedItems.map((it) => (
@@ -465,7 +490,6 @@ export default function BundlesPackages() {
                 )}
               </div>
 
-              {/* Pagination + page-size */}
               {!!filteredItems.length && (
                 <div className="px-5 md:px-8 pb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div className="text-sm opacity-70">
@@ -541,7 +565,6 @@ export default function BundlesPackages() {
                 </div>
               )}
 
-              {/* Footer tip */}
               <div className="px-5 md:px-8 pb-6">
                 <p className="text-sm opacity-70">
                   Tip: These are examples. We can customize sizing, colors, and materials for your project.

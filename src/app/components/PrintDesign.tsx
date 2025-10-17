@@ -92,39 +92,72 @@ export default function PrintDesign() {
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   const total = BASE_CATEGORIES.length;
+
+  // geometry + arrows
   const [visibleCount, setVisibleCount] = useState(3);
   const [geom, setGeom] = useState({ cardW: 400, gap: 32, glow: 20 });
+  const [arrow, setArrow] = useState({ left: -10, right: -10 });
+
   const [isPaused, setIsPaused] = useState(false);
 
   const loop = useMemo(() => [...BASE_CATEGORIES, ...BASE_CATEGORIES, ...BASE_CATEGORIES], []);
   const [slideIdx, setSlideIdx] = useState(total);
   const [noAnim, setNoAnim] = useState(false);
 
+  // ---- sizing logic (preserves your breakpoints; special profile for iPad mini landscape) ----
   useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
+      const h = window.innerHeight;
+      const landscape = w > h;
+
+      // iPad Mini landscape profile (≈1024 × 768)
+      const isIpadMiniLandscape =
+        landscape &&
+        w >= 990 && w <= 1060 &&
+        h >= 700 && h <= 820;
+
+      if (isIpadMiniLandscape) {
+        // three smaller cards between arrows
+        setVisibleCount(3);
+        setGeom({ cardW: 300, gap: 16, glow: 16 });
+        setArrow({ left: -128, right: 12 });
+        return;
+      }
+
+      // default behaviour (unchanged)
       if (w < 640) {
         setVisibleCount(1);
         setGeom({ cardW: 260, gap: 16, glow: 12 });
+        setArrow({ left: -10, right: -10 });
       } else if (w < 1024) {
         setVisibleCount(2);
         setGeom({ cardW: 320, gap: 24, glow: 16 });
+        setArrow({ left: -10, right: -10 });
       } else {
         setVisibleCount(3);
         setGeom({ cardW: 400, gap: 32, glow: 20 });
+        setArrow({ left: -10, right: -10 });
       }
     };
+
     compute();
     window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
+    window.addEventListener('orientationchange', compute);
+    return () => {
+      window.removeEventListener('resize', compute);
+      window.removeEventListener('orientationchange', compute);
+    };
   }, []);
 
+  // autoplay
   useEffect(() => {
     if (isPaused) return;
     const id = setInterval(() => setSlideIdx((i) => i + 1), 4200);
     return () => clearInterval(id);
   }, [isPaused]);
 
+  // seamless loop
   useEffect(() => {
     if (slideIdx >= 2 * total) { setNoAnim(true); setSlideIdx((i) => i - total); }
     else if (slideIdx < total) { setNoAnim(true); setSlideIdx((i) => i + total); }
@@ -144,6 +177,7 @@ export default function PrintDesign() {
     [activeCategoryId]
   );
 
+  // modal keyboard + scroll lock
   useEffect(() => {
     if (!categoryOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -190,7 +224,7 @@ export default function PrintDesign() {
   const x = -slideIdx * STEP;
 
   return (
-    <section id="print-designs" className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto">
+    <section id="print-designs" className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-6 xl:px-12 2xl:px-16 max-w-[1800px] mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] ipm-stack gap-10 items-start">
         {/* Header */}
         <div className="ipm-header flex flex-col items-center md:items-start justify-center">
@@ -211,7 +245,11 @@ export default function PrintDesign() {
         </div>
 
         {/* Carousel */}
-        <div className="relative overflow-visible" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
+        <div
+          className="relative overflow-visible"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
           <div className="ipm-frame relative mx-auto" style={{ width: viewportPx + geom.glow * 2 }}>
             {/* Prev */}
             <button
@@ -219,9 +257,10 @@ export default function PrintDesign() {
               onClick={prev}
               onFocus={() => setIsPaused(true)}
               onBlur={() => setIsPaused(false)}
-              className="ipm-prev flex absolute left-1 sm:-left-10 top-1/2 -translate-y-1/2 z-10
+              className="ipm-prev flex absolute top-1/2 -translate-y-1/2 z-10
                          bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
                          backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
+              style={{ left: `${arrow.left}px` }}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -250,7 +289,12 @@ export default function PrintDesign() {
                                border border-[var(--color-foreground)]/15
                                bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10
                                transition card-glow"
-                    style={{ width: geom.cardW, minWidth: geom.cardW, maxWidth: geom.cardW, WebkitTapHighlightColor: 'transparent' }}
+                    style={{
+                      width: geom.cardW,
+                      minWidth: geom.cardW,
+                      maxWidth: geom.cardW,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
                   >
                     <div className="p-4 sm:p-6 md:p-8 h-full min-h-[200px] sm:min-h-[220px] md:min-h-[240px] flex flex-col items-center text-center">
                       <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
@@ -261,8 +305,10 @@ export default function PrintDesign() {
                         {c.label}
                       </div>
                       {c.blurb && (
-                        <p className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
-                           style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        <p
+                          className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
+                          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                        >
                           {c.blurb}
                         </p>
                       )}
@@ -278,9 +324,10 @@ export default function PrintDesign() {
               onClick={next}
               onFocus={() => setIsPaused(true)}
               onBlur={() => setIsPaused(false)}
-              className="ipm-next flex absolute right-1 sm:-right-10 top-1/2 -translate-y-1/2 z-10
+              className="ipm-next flex absolute top-1/2 -translate-y-1/2 z-10
                          bg-[var(--color-background)]/80 border border-[var(--color-foreground)]/20
                          backdrop-blur p-1.5 sm:p-2 rounded-full hover:bg-[var(--color-background)] transition"
+              style={{ right: `${arrow.right}px` }}
             >
               <ChevronRight className="w-5 h-5" />
             </button>
