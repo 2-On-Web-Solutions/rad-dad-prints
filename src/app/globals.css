@@ -49,7 +49,16 @@ html.dark {
 /* ===================================
    Base
    =================================== */
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* NEW: prevent layout shift when a vertical scrollbar appears */
+  scrollbar-gutter: stable both-edges; /* modern */
+}
+@supports not (scrollbar-gutter: stable) {
+  /* NEW: fallback for older engines */
+  body { overflow-y: scroll; }
+}
+
 body {
   @apply transition-colors duration-300;
   background-color: var(--color-background);
@@ -103,7 +112,7 @@ body {
 }
 
 /* ===================================
-   NAV: gradient-on-hover text only
+   NAV: gradient-on-hover + baseline alignment
    =================================== */
 .rdp-navlink,
 .rdp-navlink:link,
@@ -114,6 +123,11 @@ body {
   padding: .25rem .25rem;
   border-radius: .25rem;
   transition: color .2s ease, background .2s ease;
+  /* NEW: normalize alignment across <a> and <button> */
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 1.2;
 }
 .rdp-navlink:hover,
 .rdp-navlink:focus-visible,
@@ -124,6 +138,13 @@ body {
   color: transparent;
   -webkit-text-fill-color: transparent;
   outline: none;
+}
+/* NEW: remove default button styling so “Gallery” sits flush */
+button.rdp-navlink {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
 
 /* gradient HR helpers */
@@ -155,6 +176,10 @@ body {
   .rdp-navlink { transition: none !important; }
 }
 
+
+/* -----------------------------------------------------------------------------------------------*/
+
+
 /* ============================================================
    Small tablets (generic): 640–900px
    ============================================================ */
@@ -172,6 +197,12 @@ body {
   .services-table   { font-size: .9rem !important; }
   .contact-modal    { width: 92vw !important; max-height: 90vh !important; overflow: auto !important; }
 }
+
+
+
+/* -----------------------------------------------------------------------------------------------*/
+
+
 
 /* ------------------------------------------------------------
    iPad Mini PORTRAIT – new hooks
@@ -227,14 +258,20 @@ body {
   }
 }
 
+
+
+/* -----------------------------------------------------------------------------------------------*/
+
+
+
 /* ------------------------------------------------------------
    iPad Mini LANDSCAPE (≈1024×744)
    ------------------------------------------------------------ */
 @media (min-width: 900px) and (max-width: 1100px) and (max-height: 820px) and (orientation: landscape) {
   :root {
     --rdp-mask-edge: 16px;
-    --ipm-landscape-nudge: -36px;   /* gentle left nudge for the frame */
-    --ipm-arrow-out: 72px;          /* NEW: how far arrows sit outside the frame */
+    --ipm-landscape-nudge: -36px;
+    --ipm-arrow-out: 72px;
   }
 
   /* ===== Header ===== */
@@ -325,15 +362,10 @@ body {
 
   header { padding-top: .6rem !important; padding-bottom: .6rem !important; }
 
-  /* --------------------------------------------------------
-     Print Designs & Bundles — LANDSCAPE layout
-     -------------------------------------------------------- */
-
-  /* 1) Stack title + button above the carousel */
+  /* Print Designs & Bundles — LANDSCAPE */
   .ipm-print-scope .ipm-stack,
   #bundles-packages .ipm-stack { grid-template-columns: 1fr !important; }
 
-  /* 2) Center the header block */
   .ipm-print-scope .ipm-header,
   #bundles-packages .ipm-header {
     align-items: center !important;
@@ -341,7 +373,6 @@ body {
     text-align: center !important;
   }
 
-  /* 3) Center the frame, scale slightly, nudge left */
   .ipm-print-scope .ipm-frame,
   #bundles-packages .ipm-frame {
     position: relative !important;
@@ -351,31 +382,26 @@ body {
     transform-origin: center top !important;
   }
 
-  /* 3a) viewport centering + width guard */
   .ipm-print-scope .ipm-frame > *:first-child,
   #bundles-packages .ipm-frame > *:first-child {
     margin-inline: auto !important;
     max-width: min(82vw, 1140px) !important;
   }
 
-  /* 3b) track spacing */
   .ipm-print-scope .ipm-frame [class*="track"],
   #bundles-packages .ipm-frame [class*="track"] {
     gap: 16px !important;
     padding-inline: 8px !important;
   }
 
-  /* 3c) card width */
   .ipm-print-scope .ipm-frame [class*="card"],
   #bundles-packages .ipm-frame [class*="card"] {
     width: clamp(260px, 31vw, 360px) !important;
   }
 
-  /* optional viewport left gutter trim */
   .ipm-print-scope .rdp-edge-mask,
   #bundles-packages .rdp-edge-mask { margin-left: -78px !important; }
 
-  /* 4) Arrows — keep centered and sit outside symmetrically */
   .ipm-print-scope .ipm-prev,
   .ipm-print-scope .ipm-next,
   #bundles-packages .ipm-prev,
@@ -384,14 +410,11 @@ body {
     transform: translateY(-50%) !important;
   }
 
-  /* NEW: unified offsets for both sections in this band */
   .ipm-print-scope .ipm-prev,
   #bundles-packages .ipm-prev { left: calc(-1 * var(--ipm-arrow-out)) !important; }
-
   .ipm-print-scope .ipm-next,
   #bundles-packages .ipm-next { right: calc(-1 * var(--ipm-arrow-out)) !important; }
 
-  /* --- Inline "Print Designs" title + less top padding --- */
   .ipm-print-scope .ipm-header h2 {
     display: flex !important;
     flex-direction: row !important;
@@ -406,7 +429,6 @@ body {
     line-height: 1.1 !important;
   }
 
-  /* (carry-over portrait helpers kept intact) */
   .ipm-print-scope .ipm-stack,
   #bundles-packages .ipm-stack { grid-template-columns: 1fr !important; }
 
@@ -431,29 +453,20 @@ body {
     margin-left: -80px !important;
     transform: scale(0.95);
   }
-    /* Fine-tune arrow positions — iPad Mini landscape */
   #ipm-print-scope .ipm-prev,
   #bundles-packages .ipm-prev {
-    top: 59% !important;     /* down a touch */
-    left: -124px !important;  /* move right (less negative = closer in) */
+    top: 59% !important;
+    left: -124px !important;
   }
-
   #ipm-print-scope .ipm-next,
   #bundles-packages .ipm-next {
-    top: 59% !important;     /* slightly lower */
-    right: -290px !important; /* farther right (more negative = further out) */
+    top: 59% !important;
+    right: -290px !important;
   }
-  /* Fine-tune arrow positions — Print Designs (iPad Mini landscape) */
-  .ipm-print-scope .ipm-prev {
-    top: 59% !important;     /* move slightly down */
-    left: -124px !important;  /* move right slightly (less negative = closer in) */
-  }
+  .ipm-print-scope .ipm-prev { top: 59% !important; left: -124px !important; }
+  .ipm-print-scope .ipm-next { top: 59% !important; right: -290px !important; }
 
-  .ipm-print-scope .ipm-next {
-    top: 59% !important;     /* small downward nudge */
-    right: -290px !important; /* move further out to the right */
-  }
-  /* anchor offsets so sections don't hide under the header */
+  /* anchor offsets */
   #print-designs    { scroll-margin-top: 10rem; }
   #bundles-packages { scroll-margin-top: 10rem; }
   #services         { scroll-margin-top: 5rem; }
@@ -463,22 +476,16 @@ body {
    iPad Mini LANDSCAPE — fix left glow edge & recenter carousel
    ------------------------------------------------------------ */
 @media (min-width: 900px) and (max-width: 1100px) and (max-height: 820px) and (orientation: landscape) {
-
-  /* tighten mask to hide edge glow */
   .ipm-print-scope .rdp-edge-mask,
   #bundles-packages .rdp-edge-mask {
-    margin-left: -80px !important;  /* slightly less aggressive */
+    margin-left: -80px !important;
     padding-left: 0 !important;
   }
-
-  /* recenter content after mask shift */
   .ipm-print-scope .ipm-frame,
   #bundles-packages .ipm-frame {
-    transform: translateX(-20px) scale(.92) !important;  /* bring carousel back left */
+    transform: translateX(-20px) scale(.92) !important;
     transform-origin: center top !important;
   }
-
-  /* soften only first card’s glow to avoid a hard edge */
   .ipm-print-scope .card-glow:first-child,
   #bundles-packages .card-glow:first-child {
     box-shadow:
@@ -488,21 +495,234 @@ body {
   }
 }
 
-/* ------------------------------------------------------------
-   Small laptop band: 1100–1280px
-   ------------------------------------------------------------ */
-@media (min-width: 1100px) and (max-width: 1280px) {
-  :root { --rdp-mask-edge: 18px; }
-  header { padding-bottom: 14px !important; }
-  header nav { padding-bottom: 0 !important; margin-bottom: 0 !important; }
-}
+
+/* -----------------------------------------------------------------------------------------------*/
+
 
 /* ------------------------------------------------------------
-   Desktop & up — apply the tagline stagger too
+   📱 iPad Pro / Large Tablets — PORTRAIT  (≈1024×1366)
    ------------------------------------------------------------ */
-@media (min-width: 1280px) {
+@media (min-width: 820px) and (max-width: 1100px) and (min-height: 1100px) and (orientation: portrait) {
+  :root {
+    --rdp-mask-edge: 16px;
+    --ipm-landscape-nudge: -36px;
+    --ipm-arrow-out: 72px;
+  }
+
+  /* ===== Header ===== */
+  header nav {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6rem !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    margin-right: -220px !important;
+  }
+
+  .rdp-header {
+    --logo-left: -75px !important;
+    --logo-top: 210% !important;
+    --logo-width: 260px !important;
+  }
+
+  .ipm-scope .ipm-video {
+    max-width: 62vw !important;
+    max-height: 80vh !important;
+    margin-top: 1.5rem !important;
+    margin-left: -4rem !important;
+  }
+
+  .ipm-scope .ipm-video + div,
+  .ipm-scope .ipm-right-tile {
+    top: -7rem !important;
+    margin-left: -4rem !important;
+    width: 400px !important;
+    height: 320px !important;
+    transform: scale(0.96) !important;
+  }
+
+  .ipm-scope .ipm-tagline { transform: translateY(190px) !important; }
+  .ipm-scope .ipm-tagline p {
+    font-size: clamp(36px, 1.55vw, 22px) !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0.01em !important;
+    word-spacing: 0.02em !important;
+  }
   .ipm-scope .ipm-tagline p span:nth-of-type(2) {
     display: inline-block !important;
-    transform: translateX(24px) !important;
+    transform: translateX(28px) !important;
   }
+
+  .ipm-print-scope .ipm-stack,
+  #bundles-packages .ipm-stack { grid-template-columns: 1fr !important; }
+
+  .ipm-print-scope .ipm-header,
+  #bundles-packages .ipm-header {
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .ipm-print-scope .ipm-frame,
+  #bundles-packages .ipm-frame {
+    position: relative !important;
+    margin-inline: auto !important;
+    max-width: 87vw !important;
+    transform: translateX(var(--ipm-landscape-nudge)) scale(0.92) !important;
+    transform-origin: center top !important;
+  }
+  .ipm-print-scope .rdp-edge-mask,
+  #bundles-packages .rdp-edge-mask { margin-left: -60px !important; }
+
+  .ipm-print-scope .ipm-prev,
+  .ipm-print-scope .ipm-next,
+  #bundles-packages .ipm-prev,
+  #bundles-packages .ipm-next {
+    top: 55% !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .ipm-scope .ipm-cc { transform: translateY(90px) !important; scale: .95 !important; margin-right: -110px; }
+  .ipm-scope .ipm-cc > a { padding: 12px 24px !important; gap: 6px !important; font-size: 12px !important; }
+  .ipm-scope .ipm-cta p { margin-top: 90px !important; line-height: 1.25 !important; font-size: 12px !important; margin-right: 5px; }
+
+  #ipm-print-scope .ipm-prev,
+  #bundles-packages .ipm-prev { top: 59% !important; left: -114px !important; }
+  #ipm-print-scope .ipm-next,
+  #bundles-packages .ipm-next { top: 59% !important; right: -102px !important; }
+
+  .ipm-print-scope .ipm-prev { top: 59% !important; left: -114px !important; }
+  .ipm-print-scope .ipm-next { top: 59% !important; right: -102px !important; }
+}
+
+
+/* -----------------------------------------------------------------------------------------------*/
+
+
+/* ------------------------------------------------------------
+   🎯 iPad Pro / Surface 7 — LANDSCAPE  (≈1366×1024)
+   ------------------------------------------------------------ */
+@media (min-width: 1100px) and (max-width: 1450px) and (orientation: landscape) {
+  :root {
+    --rdp-mask-edge: 16px;
+    --ipm-landscape-nudge: -46px;
+    --ipm-arrow-out: 72px;
+  }
+
+  header nav {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6rem !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    margin-right: -220px !important;
+  }
+
+  .rdp-header {
+    --logo-left: -75px !important;
+    --logo-top: 210% !important;
+    --logo-width: 260px !important;
+  }
+
+  .ipm-scope .ipm-video {
+    max-width: 62vw !important;
+    max-height: 80vh !important;
+    margin-top: 1.5rem !important;
+    margin-left: -4rem !important;
+  }
+
+  .ipm-scope .ipm-video + div,
+  .ipm-scope .ipm-right-tile {
+    top: -7rem !important;
+    margin-left: -4rem !important;
+    width: 400px !important;
+    height: 320px !important;
+    transform: scale(0.96) !important;
+  }
+
+  .ipm-scope .ipm-tagline { transform: translateY(190px) !important; }
+  .ipm-scope .ipm-tagline p {
+    font-size: clamp(36px, 1.55vw, 22px) !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0.01em !important;
+    word-spacing: 0.02em !important;
+  }
+  .ipm-scope .ipm-tagline p span:nth-of-type(2) {
+    display: inline-block !important;
+    transform: translateX(28px) !important;
+  }
+
+  .ipm-print-scope .ipm-stack,
+  #bundles-packages .ipm-stack { grid-template-columns: 1fr !important; }
+
+  .ipm-print-scope .ipm-header,
+  #bundles-packages .ipm-header {
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .ipm-print-scope .ipm-frame,
+  #bundles-packages .ipm-frame {
+    position: relative !important;
+    margin-inline: auto !important;
+    max-width: 87vw !important;
+    transform: translateX(var(--ipm-landscape-nudge)) scale(0.92) !important;
+    transform-origin: center top !important;
+  }
+  .ipm-print-scope .rdp-edge-mask,
+  #bundles-packages .rdp-edge-mask { margin-left: -60px !important; }
+
+  .ipm-print-scope .ipm-prev,
+  .ipm-print-scope .ipm-next,
+  #bundles-packages .ipm-prev,
+  #bundles-packages .ipm-next {
+    top: 55% !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .ipm-scope .ipm-cc { transform: translateY(90px) !important; scale: .95 !important; margin-right: -110px; }
+  .ipm-scope .ipm-cc > a { padding: 12px 24px !important; gap: 6px !important; font-size: 12px !important; }
+  .ipm-scope .ipm-cta p { margin-top: 90px !important; line-height: 1.25 !important; font-size: 12px !important; margin-right: 5px; }
+
+  #ipm-print-scope .ipm-prev,
+  #bundles-packages .ipm-prev { top: 59% !important; left: -114px !important; }
+  #ipm-print-scope .ipm-next,
+  #bundles-packages .ipm-next { top: 59% !important; right: -122px !important; }
+
+  .ipm-print-scope .ipm-prev { top: 59% !important; left: -104px !important; }
+  .ipm-print-scope .ipm-next { top: 59% !important; right: -102px !important; }
+
+  /* 1) Prevent any horizontal scroll/shift on the section */
+  #bundles-packages { position: relative; overflow-x: clip; }
+
+  /* 3) Keep the frame strictly within the viewport and truly centered */
+  #bundles-packages .ipm-frame {
+    margin-inline: auto !important;
+    max-width: min(86vw, 1140px) !important;   /* width guard */
+    transform: translateX(0) scale(0.92) !important;  /* remove left nudge just for Bundles */
+    transform-origin: center top !important;
+  }
+
+  #bundles-packages .ipm-frame {
+    transform: translateX(-50px) scale(.92) !important; /* try -12px to -20px range */
+  }
+
+  /* Keep arrows visually centered relative to the new frame position */
+  #bundles-packages .ipm-prev  { left: -55px !important;  transform: translate(calc(-110% + 16px), -50%) !important; }
+  #bundles-packages .ipm-next  { right: 55 !important; transform: translate(calc(110% - 16px),  -50%) !important; }
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+
+/* ------------------------------------------------------------
+   💻 Small Laptops — e.g., 1366×768 screens
+   ------------------------------------------------------------ */
+@media (min-width: 1280px) and (max-width: 1440px) and (max-height: 800px) {
+  /* Add small laptop tweaks here */
 }
