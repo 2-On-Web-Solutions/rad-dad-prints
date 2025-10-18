@@ -46,8 +46,7 @@ export default function Header({ onContact, onOpenGallery }) {
           />
         </button>
 
-        {/* Nav */}
-        {/* flex-wrap lets the md dropdown wrap onto the next line */}
+        {/* Nav (flex-wrap lets the md dropdown wrap onto the next line) */}
         <nav
           className="
             max-w-7xl mx-auto flex flex-col sm:flex-row flex-wrap items-center w-full
@@ -56,7 +55,7 @@ export default function Header({ onContact, onOpenGallery }) {
             md:pb-0 md:-mb-2 md:gap-y-0
           "
         >
-          {/* ===== Mobile ONLY (≤767px) — unchanged (logo then hamburger) ===== */}
+          {/* ===== Mobile ONLY (≤767px) — logo then hamburger ===== */}
           <div className="w-full md:hidden -mr-12 -mt-2 -mb-6 flex items-center justify-start gap-3">
             <button onClick={scrollToTop} aria-label="Go to top" className="shrink-0">
               <Image
@@ -72,13 +71,16 @@ export default function Header({ onContact, onOpenGallery }) {
               className="text-2xl focus:outline-none"
               onClick={() => setIsOpen(!isOpen)}
               aria-label="Toggle navigation"
+              aria-expanded={isOpen}
+              aria-controls="tablet-dropdown"
             >
               <FaBars />
             </button>
           </div>
 
-          {/* ===== iPad Mini / Tablet ONLY (768–1023px) — hamburger before logo ===== */}
+          {/* ===== Tablet ONLY (768–1023px) — hamburger before logo ===== */}
           <div
+            data-nav="tablet-top"
             className="
               hidden md:flex lg:hidden md:w-auto w-full
               -mr-12 md:-mt-1 md:mb-0 -mt-2 -mb-6
@@ -89,6 +91,8 @@ export default function Header({ onContact, onOpenGallery }) {
               className="text-2xl focus:outline-none"
               onClick={() => setIsOpen((o) => !o)}
               aria-label="Toggle navigation"
+              aria-expanded={isOpen}
+              aria-controls="tablet-dropdown"
             >
               <FaBars />
             </button>
@@ -106,6 +110,7 @@ export default function Header({ onContact, onOpenGallery }) {
 
           {/* ===== Desktop Inline Links ===== */}
           <ul
+            data-nav="desktop-links"
             className={`rdp-links flex-col lg:flex-row gap-4 lg:gap-10 xl:gap-20 2xl:gap-40
                         text-center text-lg font-semibold tracking-wide transition-all duration-300
                         ${isOpen ? 'flex' : 'hidden'} md:hidden lg:flex
@@ -157,8 +162,10 @@ export default function Header({ onContact, onOpenGallery }) {
             </div>
           </div>
 
-          {/* ===== iPad Mini Dropdown — in-flow, expands header height ===== */}
+          {/* ===== Tablet Dropdown — in-flow, expands header height ===== */}
           <div
+            id="tablet-dropdown"
+            data-nav="tablet-dd"
             className="hidden md:block lg:hidden w-full basis-full overflow-hidden transition-[max-height] duration-300"
             style={{ maxHeight: isOpen ? '260px' : '0px' }}
             aria-hidden={!isOpen}

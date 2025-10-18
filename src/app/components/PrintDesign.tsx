@@ -104,28 +104,37 @@ export default function PrintDesign() {
   const [slideIdx, setSlideIdx] = useState(total);
   const [noAnim, setNoAnim] = useState(false);
 
-  // ---- sizing logic (preserves your breakpoints; special profile for iPad mini landscape) ----
+  // ---- sizing logic (adds iPad Pro Portrait profile) ----
   useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       const landscape = w > h;
 
-      // iPad Mini landscape profile (≈1024 × 768)
+      // iPad mini LANDSCAPE (≈1024×768)
       const isIpadMiniLandscape =
-        landscape &&
-        w >= 990 && w <= 1060 &&
-        h >= 700 && h <= 820;
+        landscape && w >= 990 && w <= 1060 && h >= 700 && h <= 820;
+
+      // iPad Pro PORTRAIT (≈1024×1366)
+      const isIpadProPortrait =
+        !landscape && w >= 1000 && w <= 1130 && h >= 1280 && h <= 1400;
 
       if (isIpadMiniLandscape) {
-        // three smaller cards between arrows
         setVisibleCount(3);
         setGeom({ cardW: 300, gap: 16, glow: 16 });
         setArrow({ left: -128, right: 12 });
         return;
       }
 
-      // default behaviour (unchanged)
+      if (isIpadProPortrait) {
+        // mirror the compact “mini” feel on Pro portrait
+        setVisibleCount(3);
+        setGeom({ cardW: 360, gap: 24, glow: 18 });
+        setArrow({ left: -114, right: -114 });
+        return;
+      }
+
+      // defaults
       if (w < 640) {
         setVisibleCount(1);
         setGeom({ cardW: 260, gap: 16, glow: 12 });
@@ -335,7 +344,7 @@ export default function PrintDesign() {
         </div>
       </div>
 
-      {/* ===== Category Modal (RESTORED) ===== */}
+      {/* ===== Category Modal ===== */}
       {categoryOpen && (
         <div
           className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 p-4 md:p-8"
@@ -344,7 +353,6 @@ export default function PrintDesign() {
         >
           <div className="relative w-full max-w-5xl bg-[var(--color-background)] text-[var(--color-foreground)] rounded-xl shadow-2xl
                           flex flex-col overflow-hidden h-[80vh] md:h-[85vh] min-h-[560px]">
-            {/* Header (sticky) */}
             <div className="sticky top-0 z-10 bg-[var(--color-background)]/95 backdrop-blur border-b border-[var(--color-foreground)]/10 px-5 md:px-8 pt-4 pb-3 rounded-t-xl">
               <div className="flex items-center gap-3">
                 <div className="text-2xl select-none">
@@ -358,7 +366,6 @@ export default function PrintDesign() {
                 </button>
               </div>
 
-              {/* Tabs + Search */}
               <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center">
                 <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                   {[ALL_CATEGORY, ...BASE_CATEGORIES].map((cat) => {
@@ -403,9 +410,7 @@ export default function PrintDesign() {
               </div>
             </div>
 
-            {/* Scrollable body (grid + footer + pagination) */}
             <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
-              {/* Grid (filtered & paged) */}
               <div className="px-5 md:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {pagedItems.map((it) => (
                   <button
@@ -427,7 +432,6 @@ export default function PrintDesign() {
                 )}
               </div>
 
-              {/* Pagination + page-size */}
               {!!filteredItems.length && (
                 <div className="px-5 md:px-8 pb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div className="text-sm opacity-70">
@@ -497,7 +501,6 @@ export default function PrintDesign() {
                 </div>
               )}
 
-              {/* Footer tip */}
               <div className="px-5 md:px-8 pb-6">
                 <p className="text-sm opacity-70">
                   Tip: These are examples. We can customize sizing, colors, and materials for your project.
@@ -506,7 +509,6 @@ export default function PrintDesign() {
             </div>
           </div>
 
-          {/* Nested Item Modal inside the category modal */}
           <ItemModal open={itemOpen} item={activeItem} onClose={() => setItemOpen(false)} />
         </div>
       )}

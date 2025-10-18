@@ -157,7 +157,7 @@ export default function Hero() {
           `}
         >
           <span className="text-[var(--color-foreground)]">
-            You Think It I Print It!&nbsp;&nbsp;&nbsp;&nbsp;
+            You Think It, We Print It!&nbsp;&nbsp;&nbsp;
           </span>
           <br />
           <span className="text-[var(--color-foreground)]">
