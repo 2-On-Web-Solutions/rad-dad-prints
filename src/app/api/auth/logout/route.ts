@@ -1,22 +1,19 @@
-/** 
- /src/app/api/auth/login/route.ts
-*/
-
+/**
+ * /src/app/api/auth/logout/route.ts
+ */
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 
 export async function POST() {
-  // supabaseServer is now async — make sure to await it
   const supabase = await supabaseServer();
 
-  // Sign the user out
+  // Sign out the user
   await supabase.auth.signOut();
 
-  // Adjust this if you commonly use port 3002 during dev
-  const fallback = 'http://localhost:3001';
+  // Detect base URL depending on environment
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
 
-  // Redirect to dashboard after logout
-  return NextResponse.redirect(
-    new URL('/dashboard', process.env.NEXT_PUBLIC_SITE_URL || fallback)
-  );
+  // ✅ Redirect to login (dashboard route shows login screen when signed out)
+  return NextResponse.redirect(`${baseUrl}/dashboard`);
 }
