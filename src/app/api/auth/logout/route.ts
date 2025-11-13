@@ -4,16 +4,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 
-export async function POST() {
+export async function POST(req: Request) {
   const supabase = await supabaseServer();
-
-  // Sign out the user
   await supabase.auth.signOut();
 
-  // Detect base URL depending on environment
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
-
-  // ✅ Redirect to login (dashboard route shows login screen when signed out)
-  return NextResponse.redirect(`${baseUrl}/dashboard`);
+  // Use the current request's origin (works on localhost and Vercel)
+  const { origin } = new URL(req.url);
+  return NextResponse.redirect(new URL('/dashboard', origin));
 }
