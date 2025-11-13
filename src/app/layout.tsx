@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Dancing_Script } from "next/font/google";
-import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import ThemeProviderClient from "./components/ThemeProviderClient"; // ✅ our wrapper
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
       "Affordable custom 3D printing, prototyping, and design services with fast turnaround and quality results.",
     images: [
       {
-        url: "/og-image.png", // 1200x630 recommended
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Rad Dad Prints logo",
@@ -66,8 +66,6 @@ export const metadata: Metadata = {
       "Affordable custom 3D printing, prototyping, and design services with fast turnaround and quality results.",
     images: ["/og-image.png"],
   },
-
-  // ✅ Updated icon set
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -89,28 +87,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     "@type": "Organization",
     name: "Rad Dad Prints",
     url: SITE_URL,
-    // Use a square PNG for logo; apple-touch-icon is a good, high-res option
     logo: `${SITE_URL}/apple-touch-icon.png`,
-    sameAs: [
-      // Add social links when ready
-    ],
+    sameAs: [],
   };
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* JSON-LD for rich snippets */}
+        {/* Structured data for SEO */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
+
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} antialiased min-h-screen flex flex-col`}
       >
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        {/* ✅ Wrap entire app in the theme provider */}
+        <ThemeProviderClient>
           {children}
-        </ThemeProvider>
+        </ThemeProviderClient>
       </body>
     </html>
   );

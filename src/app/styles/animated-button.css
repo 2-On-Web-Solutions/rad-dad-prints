@@ -91,7 +91,7 @@
 }
 
 .animated-link-effect-2 div {
-    background-image: conic-gradient(from 0 at 50% 50%, rgb(89, 52, 177) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgb(89, 52, 177) 360deg);
+    background-image: conic-gradient(from 0 at 50% 50%, rgb(121, 74, 231) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgb(74, 207, 231) 360deg);
     position: relative;
     left: 50%;
     top: 50%;

@@ -1,148 +1,130 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import ItemModal, { type CatalogItem } from './ItemModal';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Gift,
-  Gamepad2,
-  School,
-  Package,
-  Shield,
   Trophy,
+  ToyBrick,
+  Landmark,
+  Home as HomeIcon,
+  Wrench,
+  Shield,
+  GraduationCap,
   Sparkles,
   Box,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import BundlesModal from './shop/BundlesModal'; // ← we’ll build this next
 
-/* =======================
-   Types
-======================= */
-type CatalogCategory = {
-  id: string;
+/* =========================================
+   Types (match your public API payload)
+========================================= */
+type PublicBundleCategory = {
+  id: string;            // slug (e.g., "gamer", "classroom", etc.)
   label: string;
-  icon?: ReactNode;
-  blurb?: string;
-  items: CatalogItem[];
+  sort_order: number;
+  blurb?: string | null; // optional marketing copy
+  icon_slug?: string | null; // optional; fall back to id
+  count: number;         // number of bundles in this category
 };
 
-/* =======================
-   Data (Bundles & Packages)
-======================= */
-const BASE_CATEGORIES: CatalogCategory[] = [
-  {
-    id: 'starter',
-    label: 'Starter Bundle',
-    icon: <Gift className="w-14 h-14" />,
-    blurb: 'Great entry pack: small prints + samples.',
-    items: [
-      { id: 'st-1', title: 'Starter Pack (5 pcs)', priceFrom: 'From $20' },
-      { id: 'st-2', title: 'Sample Color Set', priceFrom: 'From $10' },
-    ],
-  },
-  {
-    id: 'gamer',
-    label: 'Gamer Pack',
-    icon: <Gamepad2 className="w-14 h-14" />,
-    blurb: 'Controller stand, cable clips, desk badge.',
-    items: [
-      { id: 'ga-1', title: 'Controller Stand', priceFrom: 'From $12' },
-      { id: 'ga-2', title: 'Cable Clip Pack', priceFrom: 'From $6' },
-    ],
-  },
-  {
-    id: 'classroom',
-    label: 'Classroom Kit',
-    icon: <School className="w-14 h-14" />,
-    blurb: 'Education models, labels, organizers.',
-    items: [
-      { id: 'cl-1', title: 'Math Shapes Set', priceFrom: 'From $18' },
-      { id: 'cl-2', title: 'Desk Nameplates (10)', priceFrom: 'From $25' },
-    ],
-  },
-  {
-    id: 'maker',
-    label: 'Maker Bundle',
-    icon: <Package className="w-14 h-14" />,
-    blurb: 'Jigs, helpers, nozzle caddies, bins.',
-    items: [
-      { id: 'mk-1', title: 'Tool Caddy', priceFrom: 'From $14' },
-      { id: 'mk-2', title: 'Parts Bins (6)', priceFrom: 'From $16' },
-    ],
-  },
-  {
-    id: 'cosplay-pack',
-    label: 'Cosplay Pack',
-    icon: <Shield className="w-14 h-14" />,
-    blurb: 'Emblems, badges, strap guides.',
-    items: [
-      { id: 'cp-1', title: 'Armor Emblem Set', priceFrom: 'From $20' },
-      { id: 'cp-2', title: 'Buckle + Strap Guides', priceFrom: 'From $12' },
-    ],
-  },
-  {
-    id: 'swag',
-    label: 'Team Swag',
-    icon: <Trophy className="w-14 h-14" />,
-    blurb: 'Keychains, nameplates, number plaques.',
-    items: [
-      { id: 'sw-1', title: 'Keychain 10-Pack', priceFrom: 'From $18' },
-      { id: 'sw-2', title: 'Nameplates (Team)', priceFrom: 'From $45' },
-    ],
-  },
-];
-
-// Virtual “All” tab
 const ALL_ID = 'all';
-const ALL_CATEGORY: CatalogCategory = {
-  id: ALL_ID,
-  label: 'All',
-  icon: <Sparkles className="w-14 h-14" />,
-  blurb: 'Everything in one place.',
-  items: BASE_CATEGORIES.flatMap((c) => c.items),
-};
-const CATEGORIES_WITH_ALL: CatalogCategory[] = [ALL_CATEGORY, ...BASE_CATEGORIES];
 
-/* =======================
+/* =========================================
+   Icon mapper (same as PrintDesign.tsx)
+   - Uses icon_slug or falls back to id
+========================================= */
+const categoryIcon = (slug?: string) => {
+  switch (slug) {
+    case 'sports': return <Trophy className="w-14 h-14" />;
+    case 'toys': return <ToyBrick className="w-14 h-14" />;
+    case 'models': return <Landmark className="w-14 h-14" />;
+    case 'home': return <HomeIcon className="w-14 h-14" />;
+    case 'gadgets': return <Wrench className="w-14 h-14" />;
+    case 'cosplay': return <Shield className="w-14 h-14" />;
+    case 'education': return <GraduationCap className="w-14 h-14" />;
+    case 'all': return <Sparkles className="w-14 h-14" />;
+    default: return <Box className="w-14 h-14" />;
+  }
+};
+
+/* =========================================
    Component
-======================= */
+========================================= */
 export default function BundlesPackages() {
+  // modal state
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string>(ALL_ID);
 
-  const [itemOpen, setItemOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState<CatalogItem | null>(null);
+  // categories from API
+  const [cats, setCats] = useState<PublicBundleCategory[]>([]);
+  const [loadingCats, setLoadingCats] = useState(false);
 
-  const [query, setQuery] = useState('');
-  const searchRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingCats(true);
+      try {
+        const res = await fetch('/api/public/bundle-categories', { cache: 'no-store' });
+        const data = await res.json();
 
-  // ===== Carousel geometry (match PrintDesign) =====
-  const total = BASE_CATEGORIES.length;
-  const loop = useMemo(() => [...BASE_CATEGORIES, ...BASE_CATEGORIES, ...BASE_CATEGORIES], []);
+        if (cancelled) return;
 
+        // Prepend "All" like in PrintDesign
+        const list: PublicBundleCategory[] = [
+          {
+            id: ALL_ID,
+            label: 'All',
+            sort_order: -1,
+            blurb: 'Everything in one place.',
+            icon_slug: 'all',
+            count: data?.total ?? 0,
+          },
+          ...(data?.categories ?? []),
+        ];
+        setCats(list);
+      } catch {
+        // fail silently for now
+      } finally {
+        if (!cancelled) setLoadingCats(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* ===== Carousel sizing + arrows (same breakpoints) ===== */
   const [visibleCount, setVisibleCount] = useState(3);
   const [geom, setGeom] = useState({ cardW: 400, gap: 32, glow: 20 });
   const [arrow, setArrow] = useState({ left: -10, right: -10 });
 
-  const [isPaused, setIsPaused] = useState(false);
-  const [slideIdx, setSlideIdx] = useState(total);
-  const [noAnim, setNoAnim] = useState(false);
-
-  // ——— same breakpoint/profile logic as PrintDesign ———
   useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       const landscape = w > h;
 
-      // iPad Mini landscape (≈1024×768): show 3 smaller cards and push left arrow out
+      // iPad mini LANDSCAPE (≈1024×768)
       const isIpadMiniLandscape =
         landscape && w >= 990 && w <= 1060 && h >= 700 && h <= 820;
+
+      // iPad Pro PORTRAIT (≈1024×1366)
+      const isIpadProPortrait =
+        !landscape && w >= 1000 && w <= 1130 && h >= 1280 && h <= 1400;
 
       if (isIpadMiniLandscape) {
         setVisibleCount(3);
         setGeom({ cardW: 300, gap: 16, glow: 16 });
         setArrow({ left: -128, right: 12 });
+        return;
+      }
+
+      if (isIpadProPortrait) {
+        setVisibleCount(3);
+        setGeom({ cardW: 360, gap: 24, glow: 18 });
+        setArrow({ left: -114, right: -114 });
         return;
       }
 
@@ -170,15 +152,30 @@ export default function BundlesPackages() {
     };
   }, []);
 
-  // autoplay
+  /* ===== Carousel data (loop) ===== */
+  const baseCats = useMemo(
+    () => cats.filter((c) => c.id !== ALL_ID),
+    [cats]
+  );
+  const total = baseCats.length || 1; // guard against 0
+  const loop = useMemo(
+    () => [...baseCats, ...baseCats, ...baseCats],
+    [baseCats]
+  );
+
+  /* ===== Autoplay + seamless loop ===== */
+  const [isPaused, setIsPaused] = useState(false);
+  const [slideIdx, setSlideIdx] = useState(total);
+  const [noAnim, setNoAnim] = useState(false);
+
   useEffect(() => {
     if (isPaused) return;
     const id = setInterval(() => setSlideIdx((i) => i + 1), 4200);
     return () => clearInterval(id);
   }, [isPaused]);
 
-  // seamless loop
   useEffect(() => {
+    if (!total) return;
     if (slideIdx >= 2 * total) {
       setNoAnim(true);
       setSlideIdx((i) => i - total);
@@ -197,60 +194,21 @@ export default function BundlesPackages() {
   const next = () => setSlideIdx((i) => i + 1);
   const prev = () => setSlideIdx((i) => i - 1);
 
-  const activeCategory = useMemo(
-    () => CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId) ?? ALL_CATEGORY,
-    [activeCategoryId]
-  );
-
-  // modal helpers
-  useEffect(() => {
-    if (!categoryOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCategoryOpen(false);
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [categoryOpen]);
+  /* ===== Modal open/close (lock body scroll) ===== */
+  const openModal = (startId: string = ALL_ID) => {
+    setActiveCategoryId(startId);
+    setCategoryOpen(true);
+    document.body.style.overflow = 'hidden';
+  };
 
   useEffect(() => {
-    document.body.style.overflow = categoryOpen ? 'hidden' : '';
+    if (!categoryOpen) document.body.style.overflow = '';
     return () => {
       document.body.style.overflow = '';
     };
   }, [categoryOpen]);
 
-  const openModal = (startId: string = ALL_ID) => {
-    setActiveCategoryId(startId);
-    setQuery('');
-    setPage(1);
-    setCategoryOpen(true);
-  };
-
-  // filter + pagination
-  const filteredItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const items = activeCategory.items;
-    if (!q) return items;
-    return items.filter((it) => it.title.toLowerCase().includes(q));
-  }, [query, activeCategory]);
-
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(9);
-  useEffect(() => {
-    setPage(1);
-  }, [query, activeCategoryId]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
-  const start = (page - 1) * pageSize;
-  const end = Math.min(start + pageSize, filteredItems.length);
-  const pagedItems = filteredItems.slice(start, end);
-  const go = (p: number) => setPage(Math.min(Math.max(1, p), pageCount));
-
-  // track geometry
+  /* ===== Geometry transforms ===== */
   const viewportPx = visibleCount * geom.cardW + (visibleCount - 1) * geom.gap;
   const STEP = geom.cardW + geom.gap;
   const x = -slideIdx * STEP;
@@ -258,7 +216,7 @@ export default function BundlesPackages() {
   return (
     <section
       id="bundles-packages"
-      className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-16 max-w-[1800px] mx-auto"
+      className="ipm-print-scope py-16 px-4 sm:px-8 lg:px-6 xl:px-12 2xl:px-16 max-w-[1800px] mx-auto"
     >
       <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,360px)_1fr] ipm-stack gap-10 items-start">
         {/* Header */}
@@ -274,14 +232,12 @@ export default function BundlesPackages() {
               className="animated-link relative inline-flex items-center justify-center px-4 py-2 rounded-md"
             >
               <span className="relative z-10 text-sm">Browse All</span>
-              <i aria-hidden className="animated-link-effect">
-                <div />
-              </i>
+              <i aria-hidden className="animated-link-effect"><div /></i>
             </button>
           </div>
         </div>
 
-        {/* Carousel (mirrors PrintDesign) */}
+        {/* Carousel (mirrors PrintDesign.tsx) */}
         <div
           className="relative overflow-visible"
           onMouseEnter={() => setIsPaused(true)}
@@ -317,13 +273,13 @@ export default function BundlesPackages() {
                   width: 'max-content',
                 }}
               >
-                {loop.map((c, i) => (
+                {(loadingCats ? Array.from({ length: 6 }) : loop).map((c, i) => (
                   <button
-                    key={`${c.id}-${i}`}
+                    key={loadingCats ? `sk-${i}` : `${(c as PublicBundleCategory).id}-${i}`}
                     type="button"
                     onClickCapture={(e) => {
                       e.stopPropagation();
-                      openModal(c.id);
+                      if (!loadingCats) openModal((c as PublicBundleCategory).id);
                     }}
                     className="relative z-20 pointer-events-auto shrink-0 grow-0 rounded-none
                                border border-[var(--color-foreground)]/15
@@ -337,25 +293,30 @@ export default function BundlesPackages() {
                     }}
                   >
                     <div className="p-4 sm:p-6 md:p-8 h-full min-h-[200px] sm:min-h-[220px] md:min-h-[240px] flex flex-col items-center text-center">
-                      <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
-                                      [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
-                        {c.icon ?? <Box className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14" />}
-                      </div>
-                      <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
-                        {c.label}
-                      </div>
-                      {c.blurb && (
-                        <p
-                          className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
-                          style={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {c.blurb}
-                        </p>
+                      {loadingCats ? (
+                        <>
+                          <div className="mb-3 sm:mb-4 h-[56px] w-[56px] rounded-lg bg-white/5 animate-pulse" />
+                          <div className="h-6 w-32 rounded bg-white/5 animate-pulse" />
+                          <div className="mt-3 h-10 w-40 rounded bg-white/5 animate-pulse" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
+                                          [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
+                            {categoryIcon((c as PublicBundleCategory).icon_slug || (c as PublicBundleCategory).id)}
+                          </div>
+                          <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
+                            {(c as PublicBundleCategory).label}
+                          </div>
+                          {(c as PublicBundleCategory).blurb && (
+                            <p
+                              className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
+                              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                            >
+                              {(c as PublicBundleCategory).blurb as string}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   </button>
@@ -380,202 +341,13 @@ export default function BundlesPackages() {
         </div>
       </div>
 
-      {/* ===== Category Modal ===== */}
+      {/* Bundles modal (reads bundles/images/files from API) */}
       {categoryOpen && (
-        <div
-          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 p-4 md:p-8"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setCategoryOpen(false);
-          }}
-          aria-modal="true"
-          role="dialog"
-        >
-          <div className="relative w-full max-w-5xl bg-[var(--color-background)] text-[var(--color-foreground)] rounded-xl shadow-2xl
-                          flex flex-col overflow-hidden h-[80vh] md:h-[85vh] min-h-[560px]">
-            {/* Header (sticky) */}
-            <div className="sticky top-0 z-10 bg-[var(--color-background)]/95 backdrop-blur border-b border-[var(--color-foreground)]/10 px-5 md:px-8 pt-4 pb-3 rounded-t-xl">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl select-none">
-                  {CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.icon ?? (
-                    <Box className="w-6 h-6" />
-                  )}
-                </div>
-                <h3 className="text-2xl font-semibold">
-                  {CATEGORIES_WITH_ALL.find((c) => c.id === activeCategoryId)?.label}
-                </h3>
-                <button
-                  onClick={() => setCategoryOpen(false)}
-                  className="ml-auto text-2xl hover:opacity-80"
-                  aria-label="Close modal"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Tabs + Search */}
-              <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  {[ALL_CATEGORY, ...BASE_CATEGORIES].map((cat) => {
-                    const active = cat.id === activeCategoryId;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          setActiveCategoryId(cat.id);
-                          setQuery('');
-                          setPage(1);
-                        }}
-                        className={`whitespace-nowrap px-3 py-1.5 rounded-full border text-sm transition ${
-                          active
-                            ? 'bg-[var(--color-foreground)] text-[var(--color-background)] border-[var(--color-foreground)]'
-                            : 'bg-[var(--color-foreground)]/5 border-[var(--color-foreground)]/15 hover:bg-[var(--color-foreground)]/10'
-                        }`}
-                        aria-pressed={active}
-                      >
-                        {cat.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="md:ml-auto relative">
-                  <input
-                    ref={searchRef}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search items…"
-                    className="w-full md:w-64 rounded-md border border-[var(--color-foreground)]/15 bg-[var(--color-foreground)]/[0.04] focus:bg-transparent outline-none px-9 py-2 text-sm"
-                    aria-label="Search items"
-                  />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-60 select-none">🔎</span>
-                  {query && (
-                    <button
-                      onClick={() => {
-                        setQuery('');
-                        searchRef.current?.focus();
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-lg opacity-70 hover:opacity-100"
-                      aria-label="Clear search"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Body (grid + pagination) */}
-            <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
-              <div className="px-5 md:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pagedItems.map((it) => (
-                  <button
-                    key={it.id}
-                    onClick={() => {
-                      setActiveItem(it);
-                      setItemOpen(true);
-                    }}
-                    className="text-left rounded-lg border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.04] hover:bg-[var(--color-foreground)]/[0.08] transition shadow-md"
-                  >
-                    <div className="h-40 md:h-48 rounded-t-lg bg-gradient-to-br from-purple-500/40 to-indigo-600/30 relative overflow-hidden" />
-                    <div className="p-4">
-                      <div className="font-medium">{it.title}</div>
-                      {it.priceFrom && <div className="text-sm text-teal-400 mt-1">{it.priceFrom}</div>}
-                    </div>
-                  </button>
-                ))}
-                {!filteredItems.length && (
-                  <div className="col-span-full opacity-70 text-sm">
-                    No matches for “{query}”. Try a different term or switch tabs above.
-                  </div>
-                )}
-              </div>
-
-              {!!filteredItems.length && (
-                <div className="px-5 md:px-8 pb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div className="text-sm opacity-70">
-                    Showing <span className="font-medium">{filteredItems.length ? start + 1 : 0}</span>–
-                    <span className="font-medium">{end}</span> of{' '}
-                    <span className="font-medium">{filteredItems.length}</span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <label className="text-sm opacity-80">
-                      Per page:{' '}
-                      <select
-                        className="ml-1 rounded-md border border-[var(--color-foreground)]/20 bg-transparent px-2 py-1 text-sm"
-                        value={pageSize}
-                        onChange={(e) => {
-                          setPageSize(Number(e.target.value));
-                          setPage(1);
-                        }}
-                      >
-                        {[6, 9, 12, 18].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        className="px-2 py-1 rounded border border-[var(--color-foreground)]/20 disabled:opacity-40 inline-flex items-center gap-1"
-                        onClick={() => go(page - 1)}
-                        disabled={page <= 1}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        <span>Prev</span>
-                      </button>
-
-                      {Array.from({ length: pageCount }).slice(0, 7).map((_, i) => {
-                        let n = i + 1;
-                        if (pageCount > 7) {
-                          const window = [1, 2, page - 1, page, page + 1, pageCount - 1, pageCount]
-                            .filter((x, idx, arr) => x >= 1 && x <= pageCount && arr.indexOf(x) === idx)
-                            .sort((a, b) => a - b);
-                          n = window[i] ?? 0;
-                          if (!n) return null;
-                        }
-                        const active = n === page;
-                        return (
-                          <button
-                            key={`p-${n}`}
-                            onClick={() => go(n)}
-                            className={`px-2.5 py-1 rounded border text-sm ${
-                              active
-                                ? 'bg-[var(--color-foreground)] text-[var(--color-background)] border-[var(--color-foreground)]'
-                                : 'border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10'
-                            }`}
-                          >
-                            {n}
-                          </button>
-                        );
-                      })}
-
-                      <button
-                        className="px-2 py-1 rounded border border-[var(--color-foreground)]/20 disabled:opacity-40 inline-flex items-center gap-1"
-                        onClick={() => go(page + 1)}
-                        disabled={page >= pageCount}
-                      >
-                        <span>Next</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="px-5 md:px-8 pb-6">
-                <p className="text-sm opacity-70">
-                  Tip: These are examples. We can customize sizing, colors, and materials for your project.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Nested Item Modal */}
-          <ItemModal open={itemOpen} item={activeItem} onClose={() => setItemOpen(false)} />
-        </div>
+        <BundlesModal
+          open={categoryOpen}
+          initialCategory={activeCategoryId}
+          onClose={() => setCategoryOpen(false)}
+        />
       )}
     </section>
   );
