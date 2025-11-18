@@ -1,13 +1,24 @@
 // src/app/api/contact/route.ts
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { supabaseServer } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
 const resend = new Resend(process.env.RESEND_API_KEY || '');
 
 const esc = (s = '') =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[c] as string),
+  );
 
 // Robust ticket id: UTC timestamp + short random
 function makeTicketId() {
@@ -25,32 +36,41 @@ export async function POST(req: Request) {
     // ---------- 1) Read multipart form ----------
     const form = await req.formData();
 
-    const name    = String(form.get('name') || '');
-    const email   = String(form.get('email') || '');
+    const name = String(form.get('name') || '');
+    const email = String(form.get('email') || '');
     const subject = String(form.get('subject') || '');
     const message = String(form.get('message') || '');
-    const token   = String(form.get('token') || '');
+    const token = String(form.get('token') || '');
 
     // ---------- 2) Turnstile verify ----------
-    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        secret: process.env.TURNSTILE_SECRET_KEY || '',
-        response: token,
-        remoteip: (req.headers.get('x-forwarded-for') || '').split(',')[0] ?? '',
-      }),
-    });
+    const verifyRes = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY || '',
+          response: token,
+          remoteip: (req.headers.get('x-forwarded-for') || '')
+            .split(',')[0]
+            ?.trim() ?? '',
+        }),
+      },
+    );
+
     const verify = await verifyRes.json();
     if (!verify?.success) {
-      return NextResponse.json({ success: false, error: 'Turnstile verification failed' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Turnstile verification failed' },
+        { status: 400 },
+      );
     }
 
     // ---------- 3) Collect attachments ----------
     const files = form.getAll('files');
     const attachments: { filename: string; content: string }[] = [];
     for (const v of files) {
-      if (v instanceof File) {
+      if (typeof File !== 'undefined' && v instanceof File) {
         const buf = Buffer.from(await v.arrayBuffer());
         attachments.push({
           filename: v.name,
@@ -62,27 +82,61 @@ export async function POST(req: Request) {
     // ---------- 4) Prepare recipients / subjects / headers ----------
     const toList: string[] = (process.env.CONTACT_TO || '')
       .split(',')
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
 
     if (!toList.length) {
       console.error('No CONTACT_TO configured.');
-      return NextResponse.json({ success: false, error: 'Server misconfiguration' }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: 'Server misconfiguration' },
+        { status: 500 },
+      );
     }
 
-    const fromStaff = process.env.CONTACT_FROM || 'Rad Dad Prints <onboarding@resend.dev>';
-    const fromAuto  = process.env.CONTACT_AUTO_FROM || fromStaff; // use a no-reply if you configure one
+    const fromStaff =
+      process.env.CONTACT_FROM || 'Rad Dad Prints <onboarding@resend.dev>';
+    const fromAuto = process.env.CONTACT_AUTO_FROM || fromStaff; // use a no-reply if you configure one
 
     const ticketId = makeTicketId();
 
     // Subjects designed to prevent cross-customer threading
     const staffSubject = `[RDP #${ticketId}] ${subject || 'New message'}`;
-    const autoSubject  = `We got your message — Rad Dad Prints (Ref #${ticketId})`;
+    const autoSubject = `We got your message — Rad Dad Prints (Ref #${ticketId})`;
 
     // Helpful custom header for filters/automation
     const ticketHeaders = { 'X-RDP-Ticket': ticketId };
 
-    // ---------- 5) Send primary email to your team ----------
+    // ---------- 5) Log into CRM (crm_jobs table) ----------
+    try {
+      const supabase = await supabaseServer();
+
+      const { error: crmError } = await supabase.from('crm_jobs').insert({
+        ref: ticketId,                 // 🔑 matches your crm_jobs.ref
+        email: email || null,          // text, nullable
+        name: name || null,            // text, nullable
+        topic: subject || 'Quote',     // text
+        message: message || '',        // text, allow empty string
+        notes: '',                     // ⚠️ NOT NULL column → always send a string
+        status: 'pending',             // crm_status enum
+        // created_at / updated_at use defaults
+      });
+
+      if (crmError) {
+        console.error('CRM insert failed:', crmError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to log ticket into CRM' },
+          { status: 500 },
+        );
+      }
+    } catch (e) {
+      console.error('CRM logging exception:', e);
+      return NextResponse.json(
+        { success: false, error: 'Failed to log ticket into CRM' },
+        { status: 500 },
+      );
+    }
+
+    // ---------- 6) Send primary email to your team ----------
     const staffText = `New contact form submission (Ref #${ticketId})
 
 Name: ${name}
@@ -102,7 +156,9 @@ ${message}
           <p><b>Email:</b> ${esc(email)}</p>
           <p><b>Subject:</b> ${esc(subject)}</p>
           <hr style="border:none;border-top:1px solid #ddd;margin:16px 0" />
-          <div style="white-space:pre-wrap;line-height:1.6">${esc(message)}</div>
+          <div style="white-space:pre-wrap;line-height:1.6">${esc(
+            message,
+          )}</div>
         </td></tr>
       </table>
     `;
@@ -111,24 +167,28 @@ ${message}
       from: fromStaff,
       to: toList, // string[]
       // @ts-expect-error reply_to is supported by Resend but not yet typed
-      reply_to: email || undefined,       // replies from your team go to the customer
+      reply_to: email || undefined, // replies from your team go to the customer
       subject: staffSubject,
       text: staffText,
       html: staffHtml,
       attachments,
-      headers: ticketHeaders,             // metadata for filtering
+      headers: ticketHeaders, // metadata for filtering
       // NOTE: Do NOT set In-Reply-To/References for a brand-new ticket message
     });
 
     if (primaryErr) {
       console.error('Resend error (primary):', primaryErr);
-      return NextResponse.json({ success: false, error: 'Email send failed' }, { status: 502 });
+      return NextResponse.json(
+        { success: false, error: 'Email send failed' },
+        { status: 502 },
+      );
     }
 
-    // ---------- 6) Autoresponder to the sender (separate thread) ----------
+    // ---------- 7) Autoresponder to the sender (separate thread) ----------
     const looksLikeEmail = /\S+@\S+\.\S+/.test(email);
     if (looksLikeEmail) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://raddadprints.ca';
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || 'https://raddadprints.ca';
       const logoUrl = `${siteUrl}/assets/rad-dad-prints.png`;
 
       const autoText = `Hi ${name || 'there'},
@@ -187,19 +247,17 @@ ${siteUrl}
 
       try {
         await resend.emails.send({
-          from: fromAuto,        // ideally no-reply@… (verified)
-          to: email,             // customer
+          from: fromAuto, // ideally no-reply@… (verified)
+          to: email, // customer
           subject: autoSubject,
           text: autoText,
           html: autoresponderHtml,
           headers: {
-            ...ticketHeaders,                 // same ref for your filters
-            'Auto-Submitted': 'auto-replied', // hints for MTAs
+            ...ticketHeaders, // same ref for your filters
+            'Auto-Submitted': 'auto-replied',
             'X-Auto-Response-Suppress': 'All',
-            'Precedence': 'bulk',
+            Precedence: 'bulk',
           },
-          // IMPORTANT: do NOT set reply_to here (we don't invite replies to auto email)
-          // Also omit In-Reply-To/References so this becomes its own clean thread.
         });
       } catch (e) {
         // Don't fail the API if the autoresponder fails
@@ -207,9 +265,17 @@ ${siteUrl}
       }
     }
 
-    return NextResponse.json({ success: true, id: primaryData?.id, ticket: makeTicketId });
+    // ---------- 8) Final response ----------
+    return NextResponse.json({
+      success: true,
+      id: primaryData?.id,
+      ticket: ticketId,
+    });
   } catch (err) {
     console.error('contact route error', err);
-    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Server error' },
+      { status: 500 },
+    );
   }
 }
