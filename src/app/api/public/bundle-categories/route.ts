@@ -4,50 +4,65 @@ import { supabaseServer } from '@/lib/supabase/server';
 export async function GET() {
   const supabase = await supabaseServer();
 
-  // 1) read public categories
+  // --------------------------------------------
+  // 1. Load PUBLIC categories
+  // --------------------------------------------
   const { data: cats, error: catErr } = await supabase
     .from('bundle_categories')
-    .select('id,label,icon,sort_order,is_public')
-    .eq('is_public', true)                       // important for RLS!
+    .select('id,label,icon_slug,sort_order,is_public')
+    .eq('is_public', true)
     .order('sort_order', { ascending: true });
 
   if (catErr) {
-    console.error('bundle_categories list error', catErr);
-    // still return a shape the client understands, just empty
+    console.error('bundle_categories public list error', catErr);
     return NextResponse.json({ categories: [] }, { status: 200 });
   }
 
-  // 2) count bundles by category (keep it simple; RLS-safe)
-  const { data: bundles, error: cntErr } = await supabase
+  // --------------------------------------------
+  // 2. Load BUNDLES for counts
+  // IMPORTANT: bundles table has **is_active** but NOT is_public anymore
+  // --------------------------------------------
+  const { data: bundles, error: bundleErr } = await supabase
     .from('bundles')
-    .select('category_id');
+    .select('id,category_id,is_active')   // ← removed is_public column
+    .eq('is_active', true);
 
-  // if counting fails, we still return the list without counts
-  const counts = new Map<string, number>();
-  if (!cntErr) {
-    (bundles ?? []).forEach(b => {
-      const k = b?.category_id ?? 'uncategorized';
-      counts.set(k, (counts.get(k) ?? 0) + 1);
-    });
-  } else {
-    console.warn('bundle count error', cntErr?.message);
+  if (bundleErr) {
+    console.error('bundle_categories public count error', bundleErr);
   }
 
-  const categories = (cats ?? []).map(c => ({
+  // --------------------------------------------
+  // 3. Build count map
+  // --------------------------------------------
+  const counts = new Map<string, number>();
+  (bundles ?? []).forEach((b) => {
+    const key = b.category_id || 'uncategorized';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+
+  // --------------------------------------------
+  // 4. Map the categories list
+  // --------------------------------------------
+  let categories = (cats ?? []).map((c) => ({
     id: c.id,
     label: c.label,
-    icon: c.icon ?? null,
+    icon_slug: c.icon_slug ?? 'bundle',  // fallback icon slug
     count: counts.get(c.id) ?? 0,
   }));
 
-  // Always inject a single “Uncategorized” at the top
-  if (!categories.some(c => c.id === 'uncategorized')) {
-    categories.unshift({
-      id: 'uncategorized',
-      label: 'Uncategorized',
-      icon: 'box',
-      count: counts.get('uncategorized') ?? 0,
-    });
+  // --------------------------------------------
+  // 5. Inject UNCATEGORIZED if missing
+  // --------------------------------------------
+  if (!categories.some((c) => c.id === 'uncategorized')) {
+    categories = [
+      {
+        id: 'uncategorized',
+        label: 'Uncategorized',
+        icon_slug: 'bundle',
+        count: counts.get('uncategorized') ?? 0,
+      },
+      ...categories,
+    ];
   }
 
   return NextResponse.json({ categories }, { status: 200 });

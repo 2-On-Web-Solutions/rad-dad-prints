@@ -13,6 +13,8 @@ import {
   Box,
   ChevronLeft,
   ChevronRight,
+  Leaf,
+  Palette,
 } from 'lucide-react';
 import BundlesModal from './shop/BundlesModal'; // ← we’ll build this next
 
@@ -20,12 +22,12 @@ import BundlesModal from './shop/BundlesModal'; // ← we’ll build this next
    Types (match your public API payload)
 ========================================= */
 type PublicBundleCategory = {
-  id: string;            // slug (e.g., "gamer", "classroom", etc.)
+  id: string; // slug (e.g., "gamer", "classroom", etc.)
   label: string;
   sort_order: number;
   blurb?: string | null; // optional marketing copy
   icon_slug?: string | null; // optional; fall back to id
-  count: number;         // number of bundles in this category
+  count: number; // number of bundles in this category
 };
 
 const ALL_ID = 'all';
@@ -36,15 +38,32 @@ const ALL_ID = 'all';
 ========================================= */
 const categoryIcon = (slug?: string) => {
   switch (slug) {
-    case 'sports': return <Trophy className="w-14 h-14" />;
-    case 'toys': return <ToyBrick className="w-14 h-14" />;
-    case 'models': return <Landmark className="w-14 h-14" />;
-    case 'home': return <HomeIcon className="w-14 h-14" />;
-    case 'gadgets': return <Wrench className="w-14 h-14" />;
-    case 'cosplay': return <Shield className="w-14 h-14" />;
-    case 'education': return <GraduationCap className="w-14 h-14" />;
-    case 'all': return <Sparkles className="w-14 h-14" />;
-    default: return <Box className="w-14 h-14" />;
+    case 'sports':
+      return <Trophy className="w-14 h-14" />;
+    case 'toys':
+      return <ToyBrick className="w-14 h-14" />;
+    case 'models':
+      return <Landmark className="w-14 h-14" />;
+    case 'home':
+      return <HomeIcon className="w-14 h-14" />;
+    case 'gadgets':
+      return <Wrench className="w-14 h-14" />;
+    case 'cosplay':
+      return <Shield className="w-14 h-14" />;
+    case 'education':
+      return <GraduationCap className="w-14 h-14" />;
+    case 'art':
+      return <Palette className="w-14 h-14" />;
+    case 'office':
+      return <Box className="w-14 h-14" />;
+    case 'nature':
+      return <Leaf className="w-14 h-14" />;
+    case 'all':
+      return <Sparkles className="w-14 h-14" />;
+    // generic bundle / fallback
+    case 'bundle':
+    default:
+      return <Box className="w-14 h-14" />;
   }
 };
 
@@ -153,15 +172,9 @@ export default function BundlesPackages() {
   }, []);
 
   /* ===== Carousel data (loop) ===== */
-  const baseCats = useMemo(
-    () => cats.filter((c) => c.id !== ALL_ID),
-    [cats]
-  );
+  const baseCats = useMemo(() => cats.filter((c) => c.id !== ALL_ID), [cats]);
   const total = baseCats.length || 1; // guard against 0
-  const loop = useMemo(
-    () => [...baseCats, ...baseCats, ...baseCats],
-    [baseCats]
-  );
+  const loop = useMemo(() => [...baseCats, ...baseCats, ...baseCats], [baseCats]);
 
   /* ===== Autoplay + seamless loop ===== */
   const [isPaused, setIsPaused] = useState(false);
@@ -232,7 +245,9 @@ export default function BundlesPackages() {
               className="animated-link relative inline-flex items-center justify-center px-4 py-2 rounded-md"
             >
               <span className="relative z-10 text-sm">Browse All</span>
-              <i aria-hidden className="animated-link-effect"><div /></i>
+              <i aria-hidden className="animated-link-effect">
+                <div />
+              </i>
             </button>
           </div>
         </div>
@@ -243,7 +258,10 @@ export default function BundlesPackages() {
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          <div className="ipm-frame relative mx-auto" style={{ width: viewportPx + geom.glow * 2 }}>
+          <div
+            className="ipm-frame relative mx-auto"
+            style={{ width: viewportPx + geom.glow * 2 }}
+          >
             {/* Prev */}
             <button
               aria-label="Previous"
@@ -301,9 +319,14 @@ export default function BundlesPackages() {
                         </>
                       ) : (
                         <>
-                          <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
-                                          [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
-                            {categoryIcon((c as PublicBundleCategory).icon_slug || (c as PublicBundleCategory).id)}
+                          <div
+                            className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
+                                          [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14"
+                          >
+                            {categoryIcon(
+                              (c as PublicBundleCategory).icon_slug ||
+                                (c as PublicBundleCategory).id,
+                            )}
                           </div>
                           <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
                             {(c as PublicBundleCategory).label}
@@ -311,7 +334,12 @@ export default function BundlesPackages() {
                           {(c as PublicBundleCategory).blurb && (
                             <p
                               className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
-                              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
                             >
                               {(c as PublicBundleCategory).blurb as string}
                             </p>

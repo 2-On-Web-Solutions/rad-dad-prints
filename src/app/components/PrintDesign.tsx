@@ -11,13 +11,15 @@ import {
   GraduationCap,
   Sparkles,
   Box,
+  Palette,
+  Leaf,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 import DesignsModal from './shop/DesignsModal';
 
 type PublicCategory = {
-  id: string;           // slug
+  id: string; // slug
   label: string;
   sort_order: number;
   blurb?: string | null;
@@ -29,15 +31,30 @@ const ALL_ID = 'all';
 
 const categoryIcon = (slug?: string) => {
   switch (slug) {
-    case 'sports': return <Trophy className="w-14 h-14" />;
-    case 'toys': return <ToyBrick className="w-14 h-14" />;
-    case 'models': return <Landmark className="w-14 h-14" />;
-    case 'home': return <HomeIcon className="w-14 h-14" />;
-    case 'gadgets': return <Wrench className="w-14 h-14" />;
-    case 'cosplay': return <Shield className="w-14 h-14" />;
-    case 'education': return <GraduationCap className="w-14 h-14" />;
-    case 'all': return <Sparkles className="w-14 h-14" />;
-    default: return <Box className="w-14 h-14" />;
+    case 'sports':
+      return <Trophy className="w-14 h-14" />;
+    case 'toys':
+      return <ToyBrick className="w-14 h-14" />;
+    case 'models':
+      return <Landmark className="w-14 h-14" />;
+    case 'home':
+      return <HomeIcon className="w-14 h-14" />;
+    case 'gadgets':
+      return <Wrench className="w-14 h-14" />;
+    case 'cosplay':
+      return <Shield className="w-14 h-14" />;
+    case 'education':
+      return <GraduationCap className="w-14 h-14" />;
+    case 'art':
+      return <Palette className="w-14 h-14" />;
+    case 'office':
+      return <Box className="w-14 h-14" />;
+    case 'nature':
+      return <Leaf className="w-14 h-14" />;
+    case 'all':
+      return <Sparkles className="w-14 h-14" />;
+    default:
+      return <Box className="w-14 h-14" />;
   }
 };
 
@@ -52,10 +69,13 @@ export default function PrintDesign() {
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       setLoadingCats(true);
       try {
-        const res = await fetch('/api/public/design-categories', { cache: 'no-store' });
+        const res = await fetch('/api/public/design-categories', {
+          cache: 'no-store',
+        });
         const data = await res.json();
 
         if (cancelled) return;
@@ -71,6 +91,7 @@ export default function PrintDesign() {
           },
           ...(data?.categories ?? []),
         ];
+
         setCats(list);
       } catch {
         // fail silently for now
@@ -78,6 +99,7 @@ export default function PrintDesign() {
         if (!cancelled) setLoadingCats(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -134,6 +156,7 @@ export default function PrintDesign() {
     compute();
     window.addEventListener('resize', compute);
     window.addEventListener('orientationchange', compute);
+
     return () => {
       window.removeEventListener('resize', compute);
       window.removeEventListener('orientationchange', compute);
@@ -143,18 +166,23 @@ export default function PrintDesign() {
   // carousel data
   const baseCats = useMemo(
     () => cats.filter((c) => c.id !== ALL_ID),
-    [cats]
+    [cats],
   );
   const total = baseCats.length || 1; // guard against 0
   const loop = useMemo(
     () => [...baseCats, ...baseCats, ...baseCats],
-    [baseCats]
+    [baseCats],
   );
 
   // autoplay + seamless loop
   const [isPaused, setIsPaused] = useState(false);
   const [slideIdx, setSlideIdx] = useState(total);
   const [noAnim, setNoAnim] = useState(false);
+
+  // keep slide index centred when total changes after load
+  useEffect(() => {
+    setSlideIdx(total);
+  }, [total]);
 
   useEffect(() => {
     if (isPaused) return;
@@ -164,6 +192,7 @@ export default function PrintDesign() {
 
   useEffect(() => {
     if (!total) return;
+
     if (slideIdx >= 2 * total) {
       setNoAnim(true);
       setSlideIdx((i) => i - total);
@@ -219,7 +248,9 @@ export default function PrintDesign() {
               className="animated-link relative inline-flex items-center justify-center px-4 py-2 rounded-md"
             >
               <span className="relative z-10 text-sm">Browse All</span>
-              <i aria-hidden className="animated-link-effect"><div /></i>
+              <i aria-hidden className="animated-link-effect">
+                <div />
+              </i>
             </button>
           </div>
         </div>
@@ -230,7 +261,10 @@ export default function PrintDesign() {
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          <div className="ipm-frame relative mx-auto" style={{ width: viewportPx + geom.glow * 2 }}>
+          <div
+            className="ipm-frame relative mx-auto"
+            style={{ width: viewportPx + geom.glow * 2 }}
+          >
             {/* Prev */}
             <button
               aria-label="Previous"
@@ -248,7 +282,10 @@ export default function PrintDesign() {
             {/* Viewport */}
             <div
               className="rdp-edge-mask overflow-x-hidden overflow-y-visible mx-auto pt-1 pb-6"
-              style={{ width: viewportPx + geom.glow * 2, padding: `0 ${geom.glow}px` }}
+              style={{
+                width: viewportPx + geom.glow * 2,
+                padding: `0 ${geom.glow}px`,
+              }}
             >
               <div
                 className="flex items-stretch relative z-0"
@@ -262,11 +299,15 @@ export default function PrintDesign() {
               >
                 {(loadingCats ? Array.from({ length: 6 }) : loop).map((c, i) => (
                   <button
-                    key={loadingCats ? `sk-${i}` : `${(c as PublicCategory).id}-${i}`}
+                    key={
+                      loadingCats ? `sk-${i}` : `${(c as PublicCategory).id}-${i}`
+                    }
                     type="button"
                     onClickCapture={(e) => {
                       e.stopPropagation();
-                      if (!loadingCats) openModal((c as PublicCategory).id);
+                      if (!loadingCats) {
+                        openModal((c as PublicCategory).id);
+                      }
                     }}
                     className="relative z-20 pointer-events-auto shrink-0 grow-0 rounded-none
                                border border-[var(--color-foreground)]/15
@@ -288,9 +329,14 @@ export default function PrintDesign() {
                         </>
                       ) : (
                         <>
-                          <div className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
-                                          [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14">
-                            {categoryIcon((c as PublicCategory).icon_slug || (c as PublicCategory).id)}
+                          <div
+                            className="mb-3 sm:mb-4 h-[44px] sm:h-[56px] flex items-center justify-center select-none text-brand-500
+                                          [&_svg]:w-10 [&_svg]:h-10 sm:[&_svg]:w-12 sm:[&_svg]:h-12 md:[&_svg]:w-14 md:[&_svg]:h-14"
+                          >
+                            {categoryIcon(
+                              (c as PublicCategory).icon_slug ||
+                                (c as PublicCategory).id,
+                            )}
                           </div>
                           <div className="text-lg sm:text-xl md:text-2xl font-semibold h-[28px] sm:h-[32px] flex items-center justify-center">
                             {(c as PublicCategory).label}
@@ -298,7 +344,12 @@ export default function PrintDesign() {
                           {(c as PublicCategory).blurb && (
                             <p
                               className="opacity-70 text-xs sm:text-sm mt-2 sm:mt-3 max-w-[32ch] h-[36px] sm:h-[40px]"
-                              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
                             >
                               {(c as PublicCategory).blurb as string}
                             </p>

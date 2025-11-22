@@ -57,8 +57,8 @@ const STATUS_META: Record<
   pending: {
     emoji: '🟡',
     label: 'Pending',
-    // all dropdown text white now
-    selectTextClass: 'text-white',
+    // light theme: black, dark theme: white
+    selectTextClass: 'text-black dark:text-white',
     selectBorderClass: 'border-[var(--color-foreground)]/80',
     tabBgClass: 'bg-yellow-500/20',
     tabTextClass: 'text-yellow-200',
@@ -66,7 +66,7 @@ const STATUS_META: Record<
   working: {
     emoji: '🟢',
     label: 'Working',
-    selectTextClass: 'text-white',
+    selectTextClass: 'text-black dark:text-white',
     selectBorderClass: 'border-[var(--color-foreground)]/80',
     tabBgClass: 'bg-green-500/20',
     tabTextClass: 'text-green-200',
@@ -74,7 +74,7 @@ const STATUS_META: Record<
   completed: {
     emoji: '🔴',
     label: 'Completed',
-    selectTextClass: 'text-white',
+    selectTextClass: 'text-black dark:text-white',
     selectBorderClass: 'border-[var(--color-foreground)]/80',
     tabBgClass: 'bg-red-500/20',
     tabTextClass: 'text-red-200',
@@ -170,6 +170,21 @@ export default function CRMBoard() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [invoiceRow, setInvoiceRow] = useState<CRMRow | null>(null);
   const [deleteRowTarget, setDeleteRowTarget] = useState<CRMRow | null>(null);
+
+  // NEW: track theme based on <html class="dark">…
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => setIsDark(root.classList.contains('dark'));
+
+    update(); // initial
+
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+
+    return () => observer.disconnect();
+  }, []);
 
   // ---------- Load jobs + file counts from Supabase on mount ----------
   useEffect(() => {
@@ -447,9 +462,6 @@ export default function CRMBoard() {
             <FiPlus />
             Add customer
           </button>
-          <span className="text-xs opacity-60 hidden sm:inline">
-            (Manual entry – later we’ll hook this to Supabase.)
-          </span>
         </div>
 
         <div className="flex flex-wrap gap-2 md:justify-end">
@@ -615,7 +627,14 @@ export default function CRMBoard() {
                   {/* Status */}
                   <td className="py-3 px-3 whitespace-nowrap">
                     <select
-                      className={`bg-[var(--color-background)] border rounded px-2 py-1 text-xs ${meta.selectBorderClass} ${meta.selectTextClass}`}
+                      // Inline theme-aware text + background to override any global select styles
+                      style={{
+                        color: isDark ? '#f9fafb' : '#111827',
+                        backgroundColor: isDark
+                          ? 'var(--color-background)'
+                          : '#ffffff',
+                      }}
+                      className={`border rounded px-2 py-1 text-xs ${meta.selectBorderClass}`}
                       value={row.status}
                       onChange={(e) =>
                         void updateStatus(row.id, e.target.value as CRMStatus)

@@ -1,39 +1,67 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiUpload, FiX, FiTag, FiGrid, FiCreditCard } from 'react-icons/fi';
+import {
+  FiSearch,
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiUpload,
+  FiX,
+  FiTag,
+  FiGrid,
+  FiCreditCard,
+} from 'react-icons/fi';
+import {
+  Trophy,
+  ToyBrick,
+  Landmark,
+  Home as HomeIcon,
+  Wrench,
+  Shield,
+  GraduationCap,
+  Box,
+  Leaf,
+  Palette,
+  type LucideIcon,
+} from 'lucide-react';
 
 /* =========================
    API ROUTES (single place)
    ========================= */
 const API = {
   // public reads
-  listBundles:   (qs = '') => `/api/public/bundles${qs ? `?${qs}` : ''}`,
-  getBundle:     (id: string) => `/api/public/bundles/${id}`,
-  listCats:      `/api/public/bundle-categories`,   // <-- public list
+  listBundles: (qs = '') => `/api/public/bundles${qs ? `?${qs}` : ''}`,
+  getBundle: (id: string) => `/api/public/bundles/${id}`,
+  listCats: `/api/public/bundle-categories`, // <-- public list
 
   // protected writes
-  createBundle:  `/api/bundles/upload`,
-  updateBundle:  (id: string) => `/api/bundles/${id}`,
-  deleteBundle:  `/api/bundles/delete`,
-  addImage:      `/api/bundles/add-image`,
-  removeImage:   `/api/bundles/remove-image`,
-  updateThumb:   `/api/bundles/update-thumb`,
-  addFile:       `/api/bundles/add-file`,
-  removeFile:    `/api/bundles/remove-file`,
+  createBundle: `/api/bundles/upload`,
+  updateBundle: (id: string) => `/api/bundles/${id}`,
+  deleteBundle: `/api/bundles/delete`,
+  addImage: `/api/bundles/add-image`,
+  removeImage: `/api/bundles/remove-image`,
+  updateThumb: `/api/bundles/update-thumb`,
+  addFile: `/api/bundles/add-file`,
+  removeFile: `/api/bundles/remove-file`,
 
   // category CRUD (modal)
-  createCat:     `/api/bundle-categories`,
-  deleteCat:     `/api/bundle-categories`,
+  createCat: `/api/bundle-categories`,
+  deleteCat: `/api/bundle-categories`,
 };
 
 type BundleImage = { id: string; url: string };
-type BundleFile  = { id: string; label: string; file_url: string; mime_type?: string };
+type BundleFile = { id: string; label: string; file_url: string; mime_type?: string };
 
 type PendingGalleryFile = File;
-type PendingAssetFile   = File;
+type PendingAssetFile = File;
 
-type Category = { id: string; label: string; count?: number }; // <-- no icon here
+type Category = {
+  id: string;
+  label: string;
+  count?: number;
+  icon_slug?: string | null;
+};
 
 export type BundleRecord = {
   id: string;
@@ -59,8 +87,9 @@ export type BundleRecord = {
    ========================= */
 async function safeJson<T = any>(res: Response): Promise<T> {
   const txt = await res.text();
-  try { return txt ? (JSON.parse(txt) as T) : ({} as T); }
-  catch {
+  try {
+    return txt ? (JSON.parse(txt) as T) : ({} as T);
+  } catch {
     console.error('Non-JSON response:', txt.slice(0, 240));
     return {} as T;
   }
@@ -71,36 +100,46 @@ function slugify(s: string) {
 }
 
 function uniqueById<T extends { id: string }>(arr: T[]): T[] {
-  const seen = new Set<string>(); const out: T[] = [];
-  for (const it of arr) if (!seen.has(it.id)) { seen.add(it.id); out.push(it); }
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const it of arr) {
+    if (!seen.has(it.id)) {
+      seen.add(it.id);
+      out.push(it);
+    }
+  }
   return out;
 }
 
 /* Ensure exactly one 'uncategorized' exists in a list */
 function withSingleUncategorized(list: Category[]): Category[] {
-  const hasUncat = list.some(c => c.id === 'uncategorized');
-  const base = hasUncat ? list : [{ id: 'uncategorized', label: 'Uncategorized', count: 0 }, ...list];
+  const hasUncat = list.some((c) => c.id === 'uncategorized');
+  const base = hasUncat
+    ? list
+    : [{ id: 'uncategorized', label: 'Uncategorized', count: 0, icon_slug: 'bundle' }, ...list];
   return uniqueById(base);
 }
 
 /* Try to seed baseline categories in DB if missing */
 async function seedBaselineCategoriesIfNeeded(current: Category[]) {
   const needed: Category[] = [
-    { id: 'uncategorized', label: 'Uncategorized' },
-    { id: 'starter-kits',  label: 'Starter Bundle' },
-    { id: 'desk-sets',     label: 'Desk Set' },
+    { id: 'uncategorized', label: 'Uncategorized', icon_slug: 'bundle' },
+    { id: 'starter-kits', label: 'Starter Bundle', icon_slug: 'models' },
+    { id: 'desk-sets', label: 'Desk Set', icon_slug: 'office' },
   ];
 
-  const have = new Set(current.map(c => c.id));
-  const toCreate = needed.filter(c => !have.has(c.id));
-
-  for (const c of toCreate) {
+  const have = new Set(current.map((c) => c.id));
+  theLoop: for (const c of needed) {
+    if (have.has(c.id)) continue theLoop;
     try {
       const res = await fetch(API.createCat, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // IMPORTANT: do NOT send `icon` (your table doesn’t have this column)
-        body: JSON.stringify({ id: c.id, label: c.label }),
+        body: JSON.stringify({
+          id: c.id,
+          label: c.label,
+          icon_slug: c.icon_slug ?? null,
+        }),
       });
       if (!res.ok) {
         const msg = await res.text();
@@ -111,6 +150,46 @@ async function seedBaselineCategoriesIfNeeded(current: Category[]) {
     }
   }
 }
+
+/* =========================
+   Delete-confirm union
+   ========================= */
+type DeleteConfirmState =
+  | {
+      mode: 'bundle';
+      id: string;
+      label: string;
+    }
+  | {
+      mode: 'category';
+      id: string;
+      label: string;
+      targetId: string;
+      targetLabel: string;
+      count: number;
+    };
+
+/* =========================
+   Icon config (Lucide)
+   ========================= */
+type IconChoice = {
+  id: string;
+  label: string;
+  Icon: LucideIcon;
+};
+
+const ICONS: IconChoice[] = [
+  { id: 'sports', label: 'Sports', Icon: Trophy },
+  { id: 'toys', label: 'Toys', Icon: ToyBrick },
+  { id: 'models', label: 'Models', Icon: Landmark },
+  { id: 'home', label: 'Home', Icon: HomeIcon },
+  { id: 'gadgets', label: 'Gadgets', Icon: Wrench },
+  { id: 'cosplay', label: 'Cosplay', Icon: Shield },
+  { id: 'education', label: 'Education', Icon: GraduationCap },
+  { id: 'art', label: 'Art', Icon: Palette },
+  { id: 'office', label: 'Office', Icon: Box },
+  { id: 'nature', label: 'Nature', Icon: Leaf },
+];
 
 /* =========================
    Component
@@ -138,6 +217,7 @@ export default function BundlesManager() {
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState(false);
 
   // upload busy flags
   const [uploadingImg, setUploadingImg] = useState(false);
@@ -145,58 +225,73 @@ export default function BundlesManager() {
 
   // hidden file inputs
   const extraImgInputRef = useRef<HTMLInputElement | null>(null);
-  const assetInputRef    = useRef<HTMLInputElement | null>(null);
+  const assetInputRef = useRef<HTMLInputElement | null>(null);
 
   // Category modal state
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  // keeping the “icon” choice in UI is harmless; we just won’t send it
+  // icon stored + saved as icon_slug
   const [newCategoryIcon, setNewCategoryIcon] = useState<string>('sports');
   const [savingCategory, setSavingCategory] = useState(false);
   const [deleteCatId, setDeleteCatId] = useState<string>('');
   const [reassignCatId, setReassignCatId] = useState<string>('uncategorized');
-  const ICONS = ['sports','toys','models','home','gadgets','cosplay','education','art','office','nature'];
+
+  // shared delete-confirm modal
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   /* ----------------------- LOADERS ----------------------- */
   async function reloadCategories() {
     setLoadingCats(true);
     try {
       let list: Category[] = [];
-      const res  = await fetch(API.listCats, { cache: 'no-store' });
+      const res = await fetch(API.listCats, { cache: 'no-store' });
       if (res.ok) {
         const data = await safeJson<any>(res);
-        // Expecting shape: { categories: [{ id, label, count? }] }
+        // Expecting shape: { categories: [{ id, label, count?, icon_slug? }] }
         list = Array.isArray(data?.categories)
-          ? data.categories.map((c: any) => ({ id: c.id, label: c.label, count: c.count ?? 0 }))
+          ? data.categories.map((c: any) => ({
+              id: c.id,
+              label: c.label,
+              count: c.count ?? 0,
+              icon_slug: c.icon_slug || c.icon || null,
+            }))
           : [];
       } else {
         console.warn('listCats not ok', res.status);
       }
 
       // Seed if empty or missing uncategorized; then re-read
-      if (!list.length || !list.some(c => c.id === 'uncategorized')) {
+      if (!list.length || !list.some((c) => c.id === 'uncategorized')) {
         await seedBaselineCategoriesIfNeeded(list);
         try {
           const again = await fetch(API.listCats, { cache: 'no-store' });
           if (again.ok) {
             const data2 = await safeJson<any>(again);
             list = Array.isArray(data2?.categories)
-              ? data2.categories.map((c: any) => ({ id: c.id, label: c.label, count: c.count ?? 0 }))
+              ? data2.categories.map((c: any) => ({
+                  id: c.id,
+                  label: c.label,
+                  count: c.count ?? 0,
+                  icon_slug: c.icon_slug || c.icon || null,
+                }))
               : list;
           }
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
 
       const final = withSingleUncategorized(uniqueById(list));
       setCategories(final);
 
       // keep filter valid
-      if (selectedCategory !== 'all' && !final.some(c => c.id === selectedCategory)) {
+      if (selectedCategory !== 'all' && !final.some((c) => c.id === selectedCategory)) {
         setSelectedCategory('all');
       }
 
       // sensible defaults for delete modal
-      const first = final.find(c => c.id !== 'uncategorized') ?? final[0];
+      const first = final.find((c) => c.id !== 'uncategorized') ?? final[0];
       setDeleteCatId(first?.id || 'uncategorized');
       setReassignCatId('uncategorized');
     } catch (e) {
@@ -216,51 +311,54 @@ export default function BundlesManager() {
     try {
       const sp = new URLSearchParams();
       if (selectedCategory !== 'all') sp.set('category', selectedCategory);
-      if (query.trim())             sp.set('q', query.trim());
-      sp.set('page',     String(page));
+      if (query.trim()) sp.set('q', query.trim());
+      sp.set('page', String(page));
       sp.set('pageSize', String(pageSize));
 
-      const res  = await fetch(API.listBundles(sp.toString()), { cache: 'no-store' });
+      const res = await fetch(API.listBundles(sp.toString()), { cache: 'no-store' });
       const data = await safeJson<any>(res);
 
-      const items: BundleRecord[] = (Array.isArray(data?.items) ? data.items : []).map((row: any) => {
-        const gallery: BundleImage[] =
-          (row.images || []).map((img: any) => ({ id: img.id ?? `img-${Math.random()}`, url: img.url || img.image_url }));
+      const items: BundleRecord[] = (Array.isArray(data?.items) ? data.items : []).map(
+        (row: any) => {
+          const gallery: BundleImage[] = (row.images || []).map((img: any) => ({
+            id: img.id ?? `img-${Math.random()}`,
+            url: img.url || img.image_url,
+          }));
 
-        const files: BundleFile[] =
-          (row.files || []).map((f: any) => ({
+          const files: BundleFile[] = (row.files || []).map((f: any) => ({
             id: f.id ?? `file-${Math.random()}`,
             label: f.label || 'Download',
             file_url: f.file_url,
             mime_type: f.mime_type || '',
           }));
 
-        const imageCount = (row.thumb_url ? 1 : 0) + gallery.length;
+          const imageCount = (row.thumb_url ? 1 : 0) + gallery.length;
 
-        return {
-          id: row.id,
-          title: row.title || '',
-          blurb: row.blurb || '',
-          price_from: row.price_from || '',
-          category_id: row.category_id || 'uncategorized',
-          thumb_url: row.thumb_url || null,
-          thumb_storage_path: row.thumb_storage_path || null,
-          sort_order: row.sort_order ?? 0,
-          is_active: row.is_active ?? true,
-          created_at: row.created_at ?? '',
-          images: gallery,
-          files,
-          imageCount,
-          fileCount: files.length,
-          _pendingGalleryFiles: [],
-          _pendingAssetFiles: [],
-        };
-      });
+          return {
+            id: row.id,
+            title: row.title || '',
+            blurb: row.blurb || '',
+            price_from: row.price_from || '',
+            category_id: row.category_id || 'uncategorized',
+            thumb_url: row.thumb_url || null,
+            thumb_storage_path: row.thumb_storage_path || null,
+            sort_order: row.sort_order ?? 0,
+            is_active: row.is_active ?? true,
+            created_at: row.created_at ?? '',
+            images: gallery,
+            files,
+            imageCount,
+            fileCount: files.length,
+            _pendingGalleryFiles: [],
+            _pendingAssetFiles: [],
+          };
+        },
+      );
 
       setBundles(items);
 
       // Hydrate counts if list payload lacked details
-      const needHydration = items.filter(b => b.imageCount <= 1 || b.fileCount === 0);
+      const needHydration = items.filter((b) => b.imageCount <= 1 || b.fileCount === 0);
       if (needHydration.length) {
         await Promise.all(
           needHydration.map(async (b) => {
@@ -268,24 +366,33 @@ export default function BundlesManager() {
               const r = await fetch(API.getBundle(b.id), { cache: 'no-store' });
               if (!r.ok) return;
               const d = await safeJson<any>(r);
-              const gallery: BundleImage[] = (d?.images || []).map((i: any) => ({ id: i.id, url: i.url || i.image_url }));
-              const files: BundleFile[]    = (d?.files  || []).map((f: any) => ({
-                id: f.id, label: f.label || 'Download', file_url: f.file_url, mime_type: f.mime_type || ''
+              const gallery: BundleImage[] = (d?.images || []).map((i: any) => ({
+                id: i.id,
+                url: i.url || i.image_url,
               }));
-              setBundles(prev => prev.map(p =>
-                p.id === b.id
-                  ? { ...p,
-                      images: gallery,
-                      files,
-                      imageCount: (d?.thumb_url ? 1 : 0) + gallery.length,
-                      fileCount: files.length
-                    }
-                  : p
-              ));
+              const files: BundleFile[] = (d?.files || []).map((f: any) => ({
+                id: f.id,
+                label: f.label || 'Download',
+                file_url: f.file_url,
+                mime_type: f.mime_type || '',
+              }));
+              setBundles((prev) =>
+                prev.map((p) =>
+                  p.id === b.id
+                    ? {
+                        ...p,
+                        images: gallery,
+                        files,
+                        imageCount: (d?.thumb_url ? 1 : 0) + gallery.length,
+                        fileCount: files.length,
+                      }
+                    : p,
+                ),
+              );
             } catch (e) {
               console.warn('bundle hydrate failed', b.id, e);
             }
-          })
+          }),
         );
       }
     } catch (e) {
@@ -296,7 +403,10 @@ export default function BundlesManager() {
     }
   }
 
-  useEffect(() => { reloadCategories(); }, []);
+  useEffect(() => {
+    reloadCategories();
+  }, []);
+
   useEffect(() => {
     reloadBundles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -316,21 +426,26 @@ export default function BundlesManager() {
     });
   }, [bundles, query, selectedCategory]);
 
-  const totalPages  = Math.max(1, Math.ceil(filtered.length / pageSize || 1));
-  const currentPage = Math.min(page, totalPages);
-  const sliceStart  = (currentPage - 1) * pageSize;
-  const sliceEnd    = sliceStart + pageSize;
-  const paged       = filtered.slice(sliceStart, sliceEnd);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize || 1));
+  const currentPage =
+    totalPages === 0 ? 1 : Math.min(page, totalPages); // guard against 0, though totalPages is at least 1
+  const sliceStart = (currentPage - 1) * pageSize;
+  const sliceEnd = sliceStart + pageSize;
+  const paged = filtered.slice(sliceStart, sliceEnd);
 
   /* ---------------------- LIST SYNC ----------------------- */
   function syncInList(id: string, updater: (old: BundleRecord) => BundleRecord) {
-    setBundles((prev) => prev.map((rec) => (rec.id !== id ? rec : updater(rec))));
+    setBundles((prev) =>
+      prev.map((rec) => (rec.id !== id ? rec : updater(rec))),
+    );
   }
 
   /* ----------------------- EDITOR ------------------------- */
   function startNew() {
-    const realCats = categories.length ? categories : [{ id: 'uncategorized', label: 'Uncategorized' }];
-    const defaultCat = (realCats.find(c => c.id === 'uncategorized') ?? realCats[0]).id;
+    const realCats = categories.length
+      ? categories
+      : [{ id: 'uncategorized', label: 'Uncategorized' }];
+    const defaultCat = (realCats.find((c) => c.id === 'uncategorized') ?? realCats[0]).id;
 
     const blank: BundleRecord = {
       id: '',
@@ -358,12 +473,21 @@ export default function BundlesManager() {
   async function startEdit(id: string) {
     try {
       const res = await fetch(API.getBundle(id), { cache: 'no-store' });
-      if (!res.ok) { console.error('bundle detail fetch failed', res.status); return; }
+      if (!res.ok) {
+        console.error('bundle detail fetch failed', res.status);
+        return;
+      }
       const data = await safeJson<any>(res);
 
-      const gallery: BundleImage[] = (data?.images || []).map((i: any) => ({ id: i.id, url: i.url || i.image_url }));
-      const files:   BundleFile[]  = (data?.files  || []).map((f: any) => ({
-        id: f.id, label: f.label || 'Download', file_url: f.file_url, mime_type: f.mime_type || '',
+      const gallery: BundleImage[] = (data?.images || []).map((i: any) => ({
+        id: i.id,
+        url: i.url || i.image_url,
+      }));
+      const files: BundleFile[] = (data?.files || []).map((f: any) => ({
+        id: f.id,
+        label: f.label || 'Download',
+        file_url: f.file_url,
+        mime_type: f.mime_type || '',
       }));
 
       const base: BundleRecord = {
@@ -385,7 +509,13 @@ export default function BundlesManager() {
         _pendingAssetFiles: [],
       };
 
-      syncInList(id, (old) => ({ ...old, images: gallery, files, imageCount: base.imageCount, fileCount: base.fileCount }));
+      syncInList(id, (old) => ({
+        ...old,
+        images: gallery,
+        files,
+        imageCount: base.imageCount,
+        fileCount: base.fileCount,
+      }));
 
       setDraft(base);
       setDraftThumbFile(null);
@@ -404,22 +534,30 @@ export default function BundlesManager() {
   /* ------------------------ SAVE ------------------------- */
   async function saveDraft() {
     if (!draft) return;
-    if (!draft.title.trim()) { alert('Please enter a title.'); return; }
-    if (!draft.id && !draftThumbFile) { alert('Please choose a thumbnail before saving.'); return; }
+    if (!draft.title.trim()) {
+      alert('Please enter a title.');
+      return;
+    }
+    if (!draft.id && !draftThumbFile) {
+      alert('Please choose a thumbnail before saving.');
+      return;
+    }
 
     setSaving(true);
 
-    const catIds = new Set(categories.map(c => c.id));
-    const categoryToSend = catIds.has(draft.category_id) ? draft.category_id : 'uncategorized';
+    const catIds = new Set(categories.map((c) => c.id));
+    const categoryToSend = catIds.has(draft.category_id)
+      ? draft.category_id
+      : 'uncategorized';
 
     // NEW BUNDLE
     if (!draft.id) {
       const fd = new FormData();
-      fd.append('title',       draft.title || '');
-      fd.append('blurb',       draft.blurb || '');
-      fd.append('price_from',  draft.price_from || '');
+      fd.append('title', draft.title || '');
+      fd.append('blurb', draft.blurb || '');
+      fd.append('price_from', draft.price_from || '');
       fd.append('category_id', categoryToSend);
-      fd.append('sort_order',  String(draft.sort_order ?? bundles.length));
+      fd.append('sort_order', String(draft.sort_order ?? bundles.length));
       if (draftThumbFile) fd.append('file', draftThumbFile);
 
       const res = await fetch(API.createBundle, { method: 'POST', body: fd });
@@ -430,7 +568,7 @@ export default function BundlesManager() {
         return;
       }
 
-      const body   = await res.json();
+      const body = await res.json();
       const created: BundleRecord = {
         id: body.item.id,
         title: body.item.title || draft.title,
@@ -535,7 +673,12 @@ export default function BundlesManager() {
         setDraft((old) => (old ? { ...old, thumb_url: newThumb } : old));
         syncInList(draft.id, (old) => {
           const hadThumb = !!old.thumb_url;
-          return { ...old, ...payload, thumb_url: newThumb, imageCount: hadThumb ? old.imageCount : old.imageCount + 1 };
+          return {
+            ...old,
+            ...payload,
+            thumb_url: newThumb,
+            imageCount: hadThumb ? old.imageCount : old.imageCount + 1,
+          };
         });
       } else {
         console.error('thumb update failed', await tRes.text());
@@ -548,10 +691,9 @@ export default function BundlesManager() {
     cancelEdit();
   }
 
-  /* ------------------------ DELETE ----------------------- */
+  /* ------------------------ DELETE (actual) ----------------------- */
   async function removeBundle(id: string) {
     if (!id) return;
-    if (!window.confirm('Delete this bundle? This cannot be undone.')) return;
 
     setDeleting(true);
     const rec = bundles.find((b) => b.id === id);
@@ -575,6 +717,17 @@ export default function BundlesManager() {
     setDeleting(false);
   }
 
+  // open confirmation modal for bundle delete
+  function openBundleDeleteConfirm(b: BundleRecord) {
+    if (!b.id) return;
+    setDeleteConfirm({
+      mode: 'bundle',
+      id: b.id,
+      label: b.title || 'Untitled bundle',
+    });
+    setDeleteConfirmText('');
+  }
+
   /* ------------------- IMAGE / FILE HELPERS ------------------- */
   function handleThumbFilePick(file: File) {
     setDraftThumbFile(file);
@@ -584,12 +737,18 @@ export default function BundlesManager() {
     if (draft.id) {
       syncInList(draft.id, (old) => {
         const hadThumb = !!old.thumb_url;
-        return { ...old, thumb_url: localUrl, imageCount: hadThumb ? old.imageCount : old.imageCount + 1 };
+        return {
+          ...old,
+          thumb_url: localUrl,
+          imageCount: hadThumb ? old.imageCount : old.imageCount + 1,
+        };
       });
     }
   }
 
-  function clickAddExtraImage() { extraImgInputRef.current?.click(); }
+  function clickAddExtraImage() {
+    extraImgInputRef.current?.click();
+  }
 
   async function handleExtraImgChosen(file: File) {
     if (!draft) return;
@@ -612,15 +771,27 @@ export default function BundlesManager() {
       fd.append('bundle_id', draft.id);
       fd.append('file', file);
       const res = await fetch(API.addImage, { method: 'POST', body: fd });
-      if (!res.ok) { console.error('add-image failed', await res.text()); alert('Could not upload image.'); return; }
+      if (!res.ok) {
+        console.error('add-image failed', await res.text());
+        alert('Could not upload image.');
+        return;
+      }
       const body = await res.json();
       const it = body.item;
       if (it?.id) {
         const newImg: BundleImage = { id: it.id, url: it.url || it.image_url };
-        setDraft((old) => (old ? { ...old, images: [...old.images, newImg], imageCount: old.imageCount + 1 } : old));
-        syncInList(draft.id, (old) => ({ ...old, images: [...old.images, newImg], imageCount: old.imageCount + 1 }));
+        setDraft((old) =>
+          old ? { ...old, images: [...old.images, newImg], imageCount: old.imageCount + 1 } : old,
+        );
+        syncInList(draft.id, (old) => ({
+          ...old,
+          images: [...old.images, newImg],
+          imageCount: old.imageCount + 1,
+        }));
       }
-    } finally { setUploadingImg(false); }
+    } finally {
+      setUploadingImg(false);
+    }
   }
 
   async function removeImage(imgId: string) {
@@ -629,13 +800,21 @@ export default function BundlesManager() {
       if (!old) return old;
       const newImages = old.images.filter((img) => img.id !== imgId);
       const wasRemote = !imgId.startsWith('local-');
-      return { ...old, images: newImages, imageCount: wasRemote ? old.imageCount - 1 : old.imageCount };
+      return {
+        ...old,
+        images: newImages,
+        imageCount: wasRemote ? old.imageCount - 1 : old.imageCount,
+      };
     });
     if (draft.id) {
       syncInList(draft.id, (old) => {
         const newImages = old.images.filter((img) => img.id !== imgId);
         const wasRemote = !imgId.startsWith('local-');
-        return { ...old, images: newImages, imageCount: wasRemote ? old.imageCount - 1 : old.imageCount };
+        return {
+          ...old,
+          images: newImages,
+          imageCount: wasRemote ? old.imageCount - 1 : old.imageCount,
+        };
       });
       if (!imgId.startsWith('local-')) {
         try {
@@ -644,28 +823,37 @@ export default function BundlesManager() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: imgId }),
           });
-        } catch (e) { console.error('remove-image error', e); }
+        } catch (e) {
+          console.error('remove-image error', e);
+        }
       }
     }
   }
 
-  function clickAddAsset() { assetInputRef.current?.click(); }
+  function clickAddAsset() {
+    assetInputRef.current?.click();
+  }
 
   async function handleAssetChosen(file: File) {
     if (!draft) return;
     const MAX_MB = 100;
-    if (file.size > MAX_MB * 1024 * 1024) { alert(`File is too large (>${MAX_MB}MB).`); return; }
+    if (file.size > MAX_MB * 1024 * 1024) {
+      alert(`File is too large (>${MAX_MB}MB).`);
+      return;
+    }
 
     if (!draft.id) {
       const mock: BundleFile = {
-        id: `local-${Date.now()}`, label: file.name || 'File',
-        file_url: `/local/${file.name}`, mime_type: file.type || 'application/octet-stream'
+        id: `local-${Date.now()}`,
+        label: file.name || 'File',
+        file_url: `/local/${file.name}`,
+        mime_type: file.type || 'application/octet-stream',
       };
       setDraft({
         ...draft,
         files: [...draft.files, mock],
         fileCount: draft.fileCount + 1,
-        _pendingAssetFiles: [...(draft._pendingAssetFiles || []), file]
+        _pendingAssetFiles: [...(draft._pendingAssetFiles || []), file],
       });
       return;
     }
@@ -676,15 +864,32 @@ export default function BundlesManager() {
       fd.append('bundle_id', draft.id);
       fd.append('file', file);
       const res = await fetch(API.addFile, { method: 'POST', body: fd });
-      if (!res.ok) { console.error('add-file failed', await res.text()); alert('Could not upload file.'); return; }
+      if (!res.ok) {
+        console.error('add-file failed', await res.text());
+        alert('Could not upload file.');
+        return;
+      }
       const body = await res.json();
       const it = body.item;
       if (it?.id) {
-        const newFile: BundleFile = { id: it.id, label: it.label || 'Download', file_url: it.file_url, mime_type: it.mime_type || '' };
-        setDraft((old) => (old ? { ...old, files: [...old.files, newFile], fileCount: old.fileCount + 1 } : old));
-        syncInList(draft.id, (old) => ({ ...old, files: [...old.files, newFile], fileCount: old.fileCount + 1 }));
+        const newFile: BundleFile = {
+          id: it.id,
+          label: it.label || 'Download',
+          file_url: it.file_url,
+          mime_type: it.mime_type || '',
+        };
+        setDraft((old) =>
+          old ? { ...old, files: [...old.files, newFile], fileCount: old.fileCount + 1 } : old,
+        );
+        syncInList(draft.id, (old) => ({
+          ...old,
+          files: [...old.files, newFile],
+          fileCount: old.fileCount + 1,
+        }));
       }
-    } finally { setUploadingAsset(false); }
+    } finally {
+      setUploadingAsset(false);
+    }
   }
 
   async function removeFile(fileId: string) {
@@ -693,13 +898,21 @@ export default function BundlesManager() {
       if (!old) return old;
       const newFiles = old.files.filter((f) => f.id !== fileId);
       const wasRemote = !fileId.startsWith('local-');
-      return { ...old, files: newFiles, fileCount: wasRemote ? old.fileCount - 1 : old.fileCount };
+      return {
+        ...old,
+        files: newFiles,
+        fileCount: wasRemote ? old.fileCount - 1 : old.fileCount,
+      };
     });
     if (draft.id) {
       syncInList(draft.id, (old) => {
         const newFiles = old.files.filter((f) => f.id !== fileId);
         const wasRemote = !fileId.startsWith('local-');
-        return { ...old, files: newFiles, fileCount: wasRemote ? old.fileCount - 1 : old.fileCount };
+        return {
+          ...old,
+          files: newFiles,
+          fileCount: wasRemote ? old.fileCount - 1 : old.fileCount,
+        };
       });
       if (!fileId.startsWith('local-')) {
         try {
@@ -708,7 +921,9 @@ export default function BundlesManager() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: fileId }),
           });
-        } catch (e) { console.error('remove-file error', e); }
+        } catch (e) {
+          console.error('remove-file error', e);
+        }
       }
     }
   }
@@ -740,8 +955,11 @@ export default function BundlesManager() {
       const res = await fetch(API.createCat, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // IMPORTANT: do NOT send icon
-        body: JSON.stringify({ id, label: trimmed }),
+        body: JSON.stringify({
+          id,
+          label: trimmed,
+          icon_slug: newCategoryIcon || null,
+        }),
       });
       if (!res.ok) {
         console.error('create category failed', await res.text());
@@ -754,51 +972,100 @@ export default function BundlesManager() {
     }
   }
 
-  async function deleteCategory() {
+  // open type-to-DELETE confirm for category
+  function openCategoryDeleteConfirm() {
     if (!deleteCatId) return;
-    if (!window.confirm('Delete category and reassign existing bundles?')) return;
+    if (reassignCatId === deleteCatId) {
+      alert('Reassign target must be different from the category being deleted.');
+      return;
+    }
+    const cDel = categories.find((c) => c.id === deleteCatId);
+    const cTarget =
+      categories.find((c) => c.id === reassignCatId) ?? {
+        id: 'uncategorized',
+        label: 'Uncategorized',
+      };
+    const count = cDel?.count ?? 0;
 
+    setDeleteConfirm({
+      mode: 'category',
+      id: deleteCatId,
+      label: cDel?.label || deleteCatId,
+      targetId: cTarget.id,
+      targetLabel: cTarget.label,
+      count,
+    });
+    setDeleteConfirmText('');
+  }
+
+  // actual delete category + reassign
+  async function deleteCategory(id: string, reassignTo: string) {
+    if (!id) return;
+    if (!reassignTo || reassignTo === id) {
+      alert('Reassign target must be different from the category being deleted.');
+      return;
+    }
+
+    setDeletingCategory(true);
     try {
       const res = await fetch(API.deleteCat, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: deleteCatId, reassignTo: reassignCatId || 'uncategorized' }),
+        body: JSON.stringify({ id, reassignTo: reassignTo || 'uncategorized' }),
       });
       if (!res.ok) {
         console.error('delete category failed', await res.text());
       }
+
+      // reflect reassignment locally
+      setBundles((prev) =>
+        prev.map((b) =>
+          b.category_id === id ? { ...b, category_id: reassignTo || 'uncategorized' } : b,
+        ),
+      );
+
       await reloadCategories();
-      setBundles(prev => prev.map(b =>
-        b.category_id === deleteCatId ? { ...b, category_id: reassignCatId || 'uncategorized' } : b
-      ));
     } catch (e) {
       console.error('delete category error', e);
+    } finally {
+      setDeletingCategory(false);
     }
   }
 
   /* ------------------------ Pager ------------------------ */
   function Pager({ align = 'center' }: { align?: 'left' | 'center' | 'right' }) {
-    const baseAlign = align === 'left' ? 'justify-start' : align === 'right' ? 'justify-end' : 'justify-center';
+    const baseAlign =
+      align === 'left' ? 'justify-start' : align === 'right' ? 'justify-end' : 'justify-center';
     return (
       <div className={`flex items-center ${baseAlign} gap-4 text-sm flex-shrink-0`}>
         <button
           disabled={currentPage === 1}
           className={`px-3 py-1 rounded-md border border-[var(--color-foreground)]/20 ${
-            currentPage === 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-[var(--color-foreground)]/10 transition'
+            currentPage === 1
+              ? 'opacity-30 cursor-not-allowed'
+              : 'hover:bg-[var(--color-foreground)]/10 transition'
           }`}
-          onClick={() => { if (currentPage > 1) setPage(currentPage - 1); }}
+          onClick={() => {
+            if (currentPage > 1) setPage(currentPage - 1);
+          }}
         >
           Prev
         </button>
 
-        <div className="opacity-70 text-xs">Page {currentPage} / {totalPages}</div>
+        <div className="opacity-70 text-xs">
+          Page {currentPage} / {totalPages}
+        </div>
 
         <button
           disabled={currentPage === totalPages}
           className={`px-3 py-1 rounded-md border border-[var(--color-foreground)]/20 ${
-            currentPage === totalPages ? 'opacity-30 cursor-not-allowed' : 'hover:bg-[var(--color-foreground)]/10 transition'
+            currentPage === totalPages
+              ? 'opacity-30 cursor-not-allowed'
+              : 'hover:bg-[var(--color-foreground)]/10 transition'
           }`}
-          onClick={() => { if (currentPage < totalPages) setPage(currentPage + 1); }}
+          onClick={() => {
+            if (currentPage < totalPages) setPage(currentPage + 1);
+          }}
         >
           Next
         </button>
@@ -809,18 +1076,35 @@ export default function BundlesManager() {
   /* ---------------------- Grid Tile ---------------------- */
   function GridTile({ b }: { b: BundleRecord }) {
     return (
-      <div className="group rounded-xl border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.03] overflow-hidden" title={b.title}>
+      <div
+        className="group rounded-xl border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.03] overflow-hidden"
+        title={b.title}
+      >
         <div className="relative aspect-square bg-[var(--color-background)] flex items-center justify-center overflow-hidden">
           {b.thumb_url || b.images[0]?.url ? (
-            <img src={b.thumb_url || b.images[0]?.url || ''} alt={b.title || 'thumbnail'} className="h-full w-full object-contain" />
+            <img
+              src={b.thumb_url || b.images[0]?.url || ''}
+              alt={b.title || 'thumbnail'}
+              className="h-full w-full object-contain"
+            />
           ) : (
             <div className="text-xs opacity-70">No image</div>
           )}
           <div className="absolute top-2 right-2 hidden gap-2 group-hover:flex">
-            <button className="p-1.5 rounded-md border border-[var(--color-foreground)]/30 bg-black/40 hover:bg-black/60" title="Edit" onClick={() => startEdit(b.id)} disabled={deleting}>
+            <button
+              className="p-1.5 rounded-md border border-[var(--color-foreground)]/30 bg-black/40 hover:bg-black/60"
+              title="Edit"
+              onClick={() => startEdit(b.id)}
+              disabled={deleting}
+            >
               <FiEdit2 className="w-4 h-4 text-white" />
             </button>
-            <button className="p-1.5 rounded-md border border-[var(--color-foreground)]/30 bg-black/40 hover:bg-black/60" title="Delete" onClick={() => removeBundle(b.id)} disabled={deleting}>
+            <button
+              className="p-1.5 rounded-md border border-[var(--color-foreground)]/30 bg-black/40 hover:bg-black/60"
+              title="Delete"
+              onClick={() => openBundleDeleteConfirm(b)}
+              disabled={deleting}
+            >
               <FiTrash2 className="w-4 h-4 text-white" />
             </button>
           </div>
@@ -828,13 +1112,34 @@ export default function BundlesManager() {
         <div className="p-3">
           <div className="text-sm font-medium truncate">{b.title || 'Untitled bundle'}</div>
           <div className="text-[11px] opacity-60 capitalize truncate">
-            {categories.find((c) => c.id === b.category_id)?.label || b.category_id || 'Uncategorized'}
+            {categories.find((c) => c.id === b.category_id)?.label ||
+              b.category_id ||
+              'Uncategorized'}
           </div>
-          {b.price_from && <div className="text-teal-400 text-xs font-medium mt-1">{b.price_from}</div>}
-          <div className="mt-2 text-[10px] opacity-60">{b.imageCount} image{b.imageCount === 1 ? '' : 's'} • {b.fileCount} file{b.fileCount === 1 ? '' : 's'}</div>
+          {b.price_from && (
+            <div className="text-teal-400 text-xs font-medium mt-1">{b.price_from}</div>
+          )}
+          <div className="mt-2 text-[10px] opacity-60">
+            {b.imageCount} image{b.imageCount === 1 ? '' : 's'} • {b.fileCount} file
+            {b.fileCount === 1 ? '' : 's'}
+          </div>
         </div>
       </div>
     );
+  }
+
+  /* ------------------------ DELETE CONFIRM HANDLER ----------------------- */
+  async function handleConfirmDelete() {
+    if (!deleteConfirm || deleteConfirmText !== 'DELETE') return;
+
+    if (deleteConfirm.mode === 'bundle') {
+      await removeBundle(deleteConfirm.id);
+    } else {
+      await deleteCategory(deleteConfirm.id, deleteConfirm.targetId);
+    }
+
+    setDeleteConfirm(null);
+    setDeleteConfirmText('');
   }
 
   /* ------------------------ RENDER ----------------------- */
@@ -844,13 +1149,15 @@ export default function BundlesManager() {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-3xl font-semibold mb-1">Bundles & Packages</h1>
-          <p className="opacity-70 text-sm max-w-[60ch]">Group standalone designs into packaged sets with shared pricing and a thumbnail.</p>
+          <p className="opacity-70 text-sm max-w-[60ch]">
+            Group standalone designs into packaged sets with shared pricing and a thumbnail.
+          </p>
         </div>
 
         <div className="flex flex-col items-start sm:items-end gap-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <button
-              onClick={() => { setShowCategoryModal(true); setNewCategoryName(''); setNewCategoryIcon('sports'); }}
+              onClick={openCategoryModal}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium border border-[var(--color-foreground)]/20 bg-[var(--color-foreground)]/5 hover:bg-[var(--color-foreground)]/10 transition"
             >
               <FiTag className="text-lg" />
@@ -880,7 +1187,10 @@ export default function BundlesManager() {
               className="w-full rounded-md border border-[var(--color-foreground)]/20 bg-[var(--color-background)] py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-teal-400/40"
               placeholder="Search bundles..."
               value={query}
-              onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
 
@@ -889,13 +1199,17 @@ export default function BundlesManager() {
             <select
               className="w-full sm:w-auto rounded-md border border-[var(--color-foreground)]/20 bg-[var(--color-background)] text-[var(--color-foreground)] py-2 px-3 text-sm outline-none focus:ring-2 focus:ring-teal-400/40"
               value={selectedCategory}
-              onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setPage(1);
+              }}
               disabled={loadingCats}
             >
               <option value="all">All categories</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.label}{typeof cat.count === 'number' ? ` (${cat.count})` : ''}
+                  {cat.label}
+                  {typeof cat.count === 'number' ? ` (${cat.count})` : ''}
                 </option>
               ))}
             </select>
@@ -907,7 +1221,11 @@ export default function BundlesManager() {
             <select
               className="rounded-md border border-[var(--color-foreground)]/20 bg-[var(--color-background)] text-[var(--color-foreground)] py-2 px-3 text-sm outline-none focus:ring-2 focus:ring-teal-400/40"
               value={pageSize}
-              onChange={(e) => { const newSize = Number(e.target.value); setPageSize(newSize); setPage(1); }}
+              onChange={(e) => {
+                const newSize = Number(e.target.value);
+                setPageSize(newSize);
+                setPage(1);
+              }}
             >
               <option value={6}>6</option>
               <option value={12}>12</option>
@@ -946,24 +1264,39 @@ export default function BundlesManager() {
         </div>
 
         <div className="text-xs opacity-70 shrink-0 text-right">
-          {loadingBundles ? 'Loading…' : `${filtered.length} bundle${filtered.length === 1 ? '' : 's'} total`}
+          {loadingBundles
+            ? 'Loading…'
+            : `${filtered.length} bundle${filtered.length === 1 ? '' : 's'} total`}
         </div>
       </div>
 
       {/* RESULTS */}
       {viewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
-          {paged.map((b) => <GridTile key={b.id || `temp-${b.title}`} b={b} />)}
-          {!paged.length && !loadingBundles && <div className="opacity-70 text-sm col-span-full">No results.</div>}
-          {loadingBundles && <div className="opacity-70 text-sm col-span-full">Loading…</div>}
+          {paged.map((b) => (
+            <GridTile key={b.id || `temp-${b.title}`} b={b} />
+          ))}
+          {!paged.length && !loadingBundles && (
+            <div className="opacity-70 text-sm col-span-full">No results.</div>
+          )}
+          {loadingBundles && (
+            <div className="opacity-70 text-sm col-span-full">Loading…</div>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {paged.map((b) => (
-            <div key={b.id || `temp-${b.title}`} className="rounded-xl border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.03] overflow-hidden flex flex-col">
+            <div
+              key={b.id || `temp-${b.title}`}
+              className="rounded-xl border border-[var(--color-foreground)]/10 bg-[var(--color-foreground)]/[0.03] overflow-hidden flex flex-col"
+            >
               <div className="relative h-36 bg-[var(--color-background)] flex items-center justify-center overflow-hidden border-b border-[var(--color-foreground)]/10">
                 {b.thumb_url || b.images[0]?.url ? (
-                  <img src={b.thumb_url || b.images[0]?.url || ''} alt={b.title || 'thumbnail'} className="max-h-full max-w-full object-contain" />
+                  <img
+                    src={b.thumb_url || b.images[0]?.url || ''}
+                    alt={b.title || 'thumbnail'}
+                    className="max-h-full max-w-full object-contain"
+                  />
                 ) : (
                   <div className="text-xs opacity-70">No image</div>
                 )}
@@ -972,43 +1305,78 @@ export default function BundlesManager() {
               <div className="p-3 flex-1 flex flex-col">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-semibold leading-tight text-sm">{b.title || 'Untitled bundle'}</div>
+                    <div className="font-semibold leading-tight text-sm">
+                      {b.title || 'Untitled bundle'}
+                    </div>
                     <div className="text-[11px] opacity-60 capitalize">
-                      {categories.find((c) => c.id === b.category_id)?.label || b.category_id || 'Uncategorized'}
+                      {categories.find((c) => c.id === b.category_id)?.label ||
+                        b.category_id ||
+                        'Uncategorized'}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button className="p-1.5 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition" title="Edit" onClick={() => startEdit(b.id)} disabled={deleting}>
+                    <button
+                      className="p-1.5 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition"
+                      title="Edit"
+                      onClick={() => startEdit(b.id)}
+                      disabled={deleting}
+                    >
                       <FiEdit2 className="w-4 h-4" />
                     </button>
-                    <button className="p-1.5 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition" title="Delete" onClick={() => removeBundle(b.id)} disabled={deleting}>
+                    <button
+                      className="p-1.5 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition"
+                      title="Delete"
+                      onClick={() => openBundleDeleteConfirm(b)}
+                      disabled={deleting}
+                    >
                       <FiTrash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {b.price_from && <div className="text-teal-400 text-sm font-medium mt-2">{b.price_from}</div>}
-                {b.blurb && <p className="text-xs opacity-70 mt-2 line-clamp-3">{b.blurb}</p>}
+                {b.price_from && (
+                  <div className="text-teal-400 text-sm font-medium mt-2">
+                    {b.price_from}
+                  </div>
+                )}
+                {b.blurb && (
+                  <p className="text-xs opacity-70 mt-2 line-clamp-3">{b.blurb}</p>
+                )}
 
                 <div className="text-[10px] opacity-60 mt-auto pt-3 flex flex-wrap gap-2">
-                  <span>{b.imageCount} image{b.imageCount === 1 ? '' : 's'}</span>
+                  <span>
+                    {b.imageCount} image{b.imageCount === 1 ? '' : 's'}
+                  </span>
                   <span>•</span>
-                  <span>{b.fileCount} file{b.fileCount === 1 ? '' : 's'}</span>
+                  <span>
+                    {b.fileCount} file{b.fileCount === 1 ? '' : 's'}
+                  </span>
                 </div>
               </div>
             </div>
           ))}
-          {!paged.length && !loadingBundles && <div className="opacity-70 text-sm col-span-full">No results.</div>}
-          {loadingBundles && <div className="opacity-70 text-sm col-span-full">Loading…</div>}
+          {!paged.length && !loadingBundles && (
+            <div className="opacity-70 text-sm col-span-full">No results.</div>
+          )}
+          {loadingBundles && (
+            <div className="opacity-70 text-sm col-span-full">Loading…</div>
+          )}
         </div>
       )}
 
-      <div className="pt-8"><Pager align="center" /></div>
+      <div className="pt-8">
+        <Pager align="center" />
+      </div>
 
       {/* CATEGORY MODAL — with icon select + delete/reassign */}
       {showCategoryModal && (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 p-4" onClick={(e) => { if (e.target === e.currentTarget) closeCategoryModal(); }}>
+        <div
+          className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCategoryModal();
+          }}
+        >
           <div className="w-full max-w-md rounded-xl border border-[var(--color-foreground)]/20 bg-[var(--color-background)] text-[var(--color-foreground)] shadow-2xl p-5 flex flex-col gap-6">
             {/* Header */}
             <div className="flex items-start justify-between">
@@ -1016,14 +1384,20 @@ export default function BundlesManager() {
                 <FiTag className="text-lg" />
                 <div className="text-base font-semibold leading-tight">Manage Categories</div>
               </div>
-              <button onClick={closeCategoryModal} className="p-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition" title="Close">
+              <button
+                onClick={closeCategoryModal}
+                className="p-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition"
+                title="Close"
+              >
                 <FiX />
               </button>
             </div>
 
             {/* Create */}
             <div>
-              <div className="text-xs opacity-70 mb-2">Create a category you can assign to bundles.</div>
+              <div className="text-xs opacity-70 mb-2">
+                Create a category you can assign to bundles.
+              </div>
               <label className="text-xs opacity-70">Category name</label>
               <input
                 className="w-full rounded-md border border-[var(--color-foreground)]/30 bg-transparent text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-teal-400/40"
@@ -1032,18 +1406,23 @@ export default function BundlesManager() {
                 onChange={(e) => setNewCategoryName(e.target.value)}
               />
 
-              {/* Icon picker kept for future (no effect on save yet) */}
+              {/* Icon picker */}
               <div className="mt-3">
-                <div className="text-xs opacity-70 mb-1">Icon (optional, not saved yet)</div>
-                <div className="grid grid-cols-6 gap-2">
-                  {ICONS.map(ic => (
+                <div className="text-xs opacity-70 mb-1">Icon (optional)</div>
+                <div className="grid grid-cols-5 gap-2">
+                  {ICONS.map(({ id, label, Icon }) => (
                     <button
-                      key={ic}
-                      onClick={() => setNewCategoryIcon(ic)}
-                      className={`text-xs px-2 py-1 rounded-md border ${newCategoryIcon === ic ? 'border-teal-500/50 bg-teal-500/10' : 'border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10'}`}
-                      title={ic}
+                      key={id}
+                      onClick={() => setNewCategoryIcon(id)}
+                      className={`flex items-center justify-center gap-1 text-[11px] px-2 py-1 rounded-md border ${
+                        newCategoryIcon === id
+                          ? 'border-teal-500/50 bg-teal-500/10'
+                          : 'border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10'
+                      }`}
+                      title={label}
                     >
-                      {ic}
+                      <Icon className="w-4 h-4" />
+                      <span className="leading-none">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -1065,34 +1444,54 @@ export default function BundlesManager() {
               <div className="pt-2 border-t border-[var(--color-foreground)]/10">
                 <div className="text-xs opacity-70 mb-2">Delete category</div>
                 <div className="grid grid-cols-1 gap-2">
+                  {/* delete select */}
                   <select
-                    className="rounded-md border border-[var(--color-foreground)]/30 bg-transparent text-sm px-3 py-2 outline-none"
+                    className="rounded-md border border-[var(--color-foreground)]/30 bg-[var(--color-background)] text-[var(--color-foreground)] text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-teal-400/40"
                     value={deleteCatId}
                     onChange={(e) => setDeleteCatId(e.target.value)}
                   >
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                        {typeof c.count === 'number' ? ` (${c.count})` : ''}
+                      </option>
+                    ))}
                   </select>
+
                   <div className="text-xs opacity-70">Reassign bundles to</div>
+                  {/* reassign select */}
                   <select
-                    className="rounded-md border border-[var(--color-foreground)]/30 bg-transparent text-sm px-3 py-2 outline-none"
+                    className="rounded-md border border-[var(--color-foreground)]/30 bg-[var(--color-background)] text-[var(--color-foreground)] text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-teal-400/40"
                     value={reassignCatId}
                     onChange={(e) => setReassignCatId(e.target.value)}
                   >
-                    {withSingleUncategorized(categories.filter(c => c.id !== deleteCatId))
-                      .map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    {withSingleUncategorized(categories.filter((c) => c.id !== deleteCatId)).map(
+                      (c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ),
+                    )}
                   </select>
+
                   <button
-                    onClick={deleteCategory}
-                    className="mt-2 text-sm px-4 py-2 rounded-md border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition"
+                    onClick={openCategoryDeleteConfirm}
+                    className="mt-2 text-sm px-4 py-2 rounded-md border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-50"
+                    disabled={!deleteCatId || deletingCategory}
                   >
-                    Delete Category
+                    <FiTrash2 className="inline-block mr-1 w-4 h-4" />
+                    {deletingCategory ? 'Deleting…' : 'Delete Category'}
                   </button>
                 </div>
               </div>
             )}
 
             <div className="flex justify-end">
-              <button onClick={closeCategoryModal} className="text-sm px-4 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition" disabled={savingCategory}>
+              <button
+                onClick={closeCategoryModal}
+                className="text-sm px-4 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition"
+                disabled={savingCategory || deletingCategory}
+              >
                 Done
               </button>
             </div>
@@ -1102,11 +1501,20 @@ export default function BundlesManager() {
 
       {/* EDITOR MODAL */}
       {openEditor && draft && (
-        <div className="fixed inset-0 z-[220] bg-black/70 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) cancelEdit(); }}>
+        <div
+          className="fixed inset-0 z-[220] bg-black/70 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) cancelEdit();
+          }}
+        >
           <div className="w-full max-w-2xl rounded-xl border border-[var(--color-foreground)]/20 bg-[var(--color-background)] text-[var(--color-foreground)] shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-foreground)]/10">
               <div className="font-semibold">{draft.id ? 'Edit Bundle' : 'New Bundle'}</div>
-              <button onClick={cancelEdit} className="p-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition" title="Close">
+              <button
+                onClick={cancelEdit}
+                className="p-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition"
+                title="Close"
+              >
                 <FiX />
               </button>
             </div>
@@ -1137,12 +1545,14 @@ export default function BundlesManager() {
 
                 <label className="text-xs opacity-70">Category</label>
                 <select
-                  className="w-full rounded-md border border-[var(--color-foreground)]/30 bg-transparent text-[var(--color-foreground)] text-sm px-3 py-2 outline-none"
+                  className="w-full rounded-md border border-[var(--color-foreground)]/30 bg-[var(--color-background)] text-[var(--color-foreground)] text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-teal-400/40"
                   value={draft.category_id}
                   onChange={(e) => setDraft({ ...draft, category_id: e.target.value })}
                 >
                   {withSingleUncategorized(categories).map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -1153,7 +1563,11 @@ export default function BundlesManager() {
                   <div className="flex items-center gap-3">
                     <div className="h-24 w-24 rounded-lg border border-[var(--color-foreground)]/20 bg-[var(--color-foreground)]/5 flex items-center justify-center overflow-hidden">
                       {draft.thumb_url ? (
-                        <img src={draft.thumb_url} alt="thumb" className="max-h-full max-w-full object-contain" />
+                        <img
+                          src={draft.thumb_url}
+                          alt="thumb"
+                          className="max-h-full max-w-full object-contain"
+                        />
                       ) : (
                         <span className="text-[11px] opacity-60">No image</span>
                       )}
@@ -1161,7 +1575,14 @@ export default function BundlesManager() {
                     <label className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 cursor-pointer">
                       <FiUpload />
                       <span className="text-sm">Choose</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleThumbFilePick(e.target.files[0])} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          e.target.files?.[0] && handleThumbFilePick(e.target.files[0])
+                        }
+                      />
                     </label>
                   </div>
                 </div>
@@ -1170,19 +1591,41 @@ export default function BundlesManager() {
                   <div className="text-xs opacity-70">Gallery Images</div>
                   <div className="flex flex-wrap gap-2">
                     {draft.images.map((img) => (
-                      <div key={img.id} className="relative h-16 w-16 rounded-md overflow-hidden border border-[var(--color-foreground)]/20">
+                      <div
+                        key={img.id}
+                        className="relative h-16 w-16 rounded-md overflow-hidden border border-[var(--color-foreground)]/20"
+                      >
                         <img src={img.url} alt="" className="h-full w-full object-cover" />
-                        <button className="absolute -top-2 -right-2 bg-black/70 rounded-full p-1" onClick={() => removeImage(img.id)} title="Remove">
+                        <button
+                          className="absolute -top-2 -right-2 bg-black/70 rounded-full p-1"
+                          onClick={() => removeImage(img.id)}
+                          title="Remove"
+                        >
                           <FiX className="text-white text-xs" />
                         </button>
                       </div>
                     ))}
                   </div>
-                  <button type="button" onClick={clickAddExtraImage} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10" disabled={uploadingImg}>
+                  <button
+                    type="button"
+                    onClick={clickAddExtraImage}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10"
+                    disabled={uploadingImg}
+                  >
                     <FiUpload />
-                    <span className="text-sm">{uploadingImg ? 'Uploading…' : 'Add Image'}</span>
+                    <span className="text-sm">
+                      {uploadingImg ? 'Uploading…' : 'Add Image'}
+                    </span>
                   </button>
-                  <input ref={extraImgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleExtraImgChosen(e.target.files[0])} />
+                  <input
+                    ref={extraImgInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && handleExtraImgChosen(e.target.files[0])
+                    }
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -1191,28 +1634,154 @@ export default function BundlesManager() {
                     {draft.files.map((f) => (
                       <li key={f.id} className="flex items-center justify-between">
                         <span className="truncate">{f.label}</span>
-                        <button className="text-red-400 hover:underline" onClick={() => removeFile(f.id)}>remove</button>
+                        <button
+                          className="text-red-400 hover:underline"
+                          onClick={() => removeFile(f.id)}
+                        >
+                          remove
+                        </button>
                       </li>
                     ))}
-                    {!draft.files.length && <li className="opacity-60">No files yet</li>}
+                    {!draft.files.length && (
+                      <li className="opacity-60">No files yet</li>
+                    )}
                   </ul>
-                  <button type="button" onClick={clickAddAsset} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10" disabled={uploadingAsset}>
+                  <button
+                    type="button"
+                    onClick={clickAddAsset}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10"
+                    disabled={uploadingAsset}
+                  >
                     <FiUpload />
-                    <span className="text-sm">{uploadingAsset ? 'Uploading…' : 'Add File'}</span>
+                    <span className="text-sm">
+                      {uploadingAsset ? 'Uploading…' : 'Add File'}
+                    </span>
                   </button>
-                  <input ref={assetInputRef} type="file" className="hidden" onChange={(e) => e.target.files?.[0] && handleAssetChosen(e.target.files[0])} />
+                  <input
+                    ref={assetInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) =>
+                      e.target.files?.[0] && handleAssetChosen(e.target.files[0])
+                    }
+                  />
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-[var(--color-foreground)]/10">
-              <button onClick={cancelEdit} className="px-4 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10">Cancel</button>
+              <button
+                onClick={cancelEdit}
+                className="px-4 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10"
+              >
+                Cancel
+              </button>
               <button
                 onClick={saveDraft}
                 disabled={saving}
                 className="px-4 py-2 rounded-md border border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRM MODAL (bundles + categories) */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 z-[230] bg-black/70 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deleting && !deletingCategory) {
+              setDeleteConfirm(null);
+              setDeleteConfirmText('');
+            }
+          }}
+        >
+          <div className="w-full max-w-sm rounded-xl border border-[var(--color-foreground)]/20 bg-[var(--color-background)] text-[var(--color-foreground)] shadow-2xl p-5 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="text-base font-semibold leading-tight">
+                {deleteConfirm.mode === 'bundle' ? 'Delete bundle' : 'Delete category'}
+              </div>
+              <button
+                onClick={() => {
+                  if (!deleting && !deletingCategory) {
+                    setDeleteConfirm(null);
+                    setDeleteConfirmText('');
+                  }
+                }}
+                className="p-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 transition"
+                title="Close"
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              {deleteConfirm.mode === 'bundle' ? (
+                <p className="opacity-80">
+                  Type <span className="font-mono text-red-400">DELETE</span> to permanently delete{' '}
+                  <span className="font-semibold">“{deleteConfirm.label}”</span> and all of its
+                  images/files. This action cannot be undone.
+                </p>
+              ) : (
+                <>
+                  <p className="opacity-80">
+                    Type <span className="font-mono text-red-400">DELETE</span> to delete the
+                    category <span className="font-semibold">“{deleteConfirm.label}”</span>.
+                  </p>
+                  <div className="text-xs opacity-70 rounded-md border border-[var(--color-foreground)]/20 bg-[var(--color-foreground)]/5 px-3 py-2">
+                    {deleteConfirm.count > 0 ? (
+                      <>
+                        This category is used by {deleteConfirm.count} bundle
+                        {deleteConfirm.count === 1 ? '' : 's'}. They will be reassigned to “
+                        {deleteConfirm.targetLabel}”.
+                      </>
+                    ) : (
+                      <>No bundles currently use this category.</>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs opacity-70">Type DELETE to confirm</label>
+                <input
+                  className="w-full rounded-md border border-[var(--color-foreground)]/30 bg-transparent text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-red-500/40"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value.toUpperCase())}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => {
+                  if (!deleting && !deletingCategory) {
+                    setDeleteConfirm(null);
+                    setDeleteConfirmText('');
+                  }
+                }}
+                className="px-4 py-2 rounded-md border border-[var(--color-foreground)]/20 hover:bg-[var(--color-foreground)]/10 text-sm"
+                disabled={deleting || deletingCategory}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteConfirmText !== 'DELETE' || deleting || deletingCategory}
+                className="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-md border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-50"
+              >
+                <FiTrash2 className="w-4 h-4" />
+                {deleteConfirm.mode === 'bundle'
+                  ? deleting
+                    ? 'Deleting…'
+                    : 'Delete Bundle'
+                  : deletingCategory
+                  ? 'Deleting…'
+                  : 'Delete Category'}
               </button>
             </div>
           </div>

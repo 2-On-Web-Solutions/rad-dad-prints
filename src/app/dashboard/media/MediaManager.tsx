@@ -1,11 +1,6 @@
 'use client';
 
-import React, {
-  useEffect,
-  useState,
-  useMemo,
-  useRef,
-} from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   FiUpload,
   FiTrash2,
@@ -45,7 +40,7 @@ type MediaItem = {
   tags: string[];
   created_at: string;
   sort_order: number;
-  storage_path?: string; // <- now tracked for safe deletion
+  storage_path?: string; // <- tracked for safe deletion
 };
 
 // ----------------------------
@@ -73,6 +68,16 @@ export default function MediaManager() {
 
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(12);
+
+  // meta-update status
+  const [isSavingMeta, setIsSavingMeta] = useState(false);
+  const [metaSaveStatus, setMetaSaveStatus] = useState<
+    'idle' | 'success' | 'error'
+  >('idle');
+
+  // local edit state for caption/tags so we don't thrash the gallery on every keypress
+  const [detailCaption, setDetailCaption] = useState('');
+  const [detailTags, setDetailTags] = useState<string[]>([]);
 
   // ===== LOAD FROM SUPABASE ON MOUNT =====
   useEffect(() => {
@@ -116,6 +121,20 @@ export default function MediaManager() {
   const activeItem: MediaItem | null = draftItem
     ? draftItem
     : items.find((i) => i.id === selectedId) || null;
+
+  // keep local detail state in sync when the active/draft item changes
+  useEffect(() => {
+    if (draftItem) {
+      setDetailCaption(draftItem.caption);
+      setDetailTags(draftItem.tags);
+    } else if (activeItem) {
+      setDetailCaption(activeItem.caption);
+      setDetailTags(activeItem.tags);
+    } else {
+      setDetailCaption('');
+      setDetailTags([]);
+    }
+  }, [draftItem, activeItem]);
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -206,15 +225,13 @@ export default function MediaManager() {
       tags: item.tags,
       created_at: item.created_at,
       sort_order: item.sort_order,
-      storage_path: item.storage_path, // <- keep it
+      storage_path: item.storage_path,
     };
 
-    // update UI with the real DB-backed row
     setItems((prev) => [newItem, ...prev]);
     setSelectedId(newItem.id);
     setIsPanelOpen(true);
 
-    // clear draft
     setDraftItem(null);
     draftFileRef.current = null;
   }
@@ -232,22 +249,18 @@ export default function MediaManager() {
     setSelectedId(id);
     setDraftItem(null);
     setIsPanelOpen(true);
+    setMetaSaveStatus('idle');
   }
 
   async function handleDelete(id: string) {
-    // If it's just a local unsaved draft
     if (draftItem && draftItem.id === id) {
       cancelDraft();
       return;
     }
 
-    // Find the item so we know the storage_path to send
     const toDelete = items.find((m) => m.id === id);
     if (!toDelete) return;
 
-    // Call secure API route which:
-    // 1. deletes row from media_assets
-    // 2. deletes file from storage bucket (using storage_path)
     const res = await fetch('/api/media/delete', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -263,7 +276,6 @@ export default function MediaManager() {
       return;
     }
 
-    // Update UI
     setItems((prev) => prev.filter((m) => m.id !== id));
 
     if (selectedId === id) {
@@ -277,29 +289,26 @@ export default function MediaManager() {
     }
   }
 
+  // local-only edits for caption/tags (persist when Update button is clicked)
   function updateCaption(newCaption: string) {
+    setMetaSaveStatus('idle');
+
     if (draftItem) {
-      // editing draft locally
       setDraftItem({ ...draftItem, caption: newCaption });
+      // detailCaption will be synced from draft via useEffect
       return;
     }
 
-    if (!activeItem) return;
-
-    // local-only right now (we'll PATCH later)
-    setItems((prev) =>
-      prev.map((m) =>
-        m.id === activeItem.id ? { ...m, caption: newCaption } : m
-      )
-    );
+    setDetailCaption(newCaption);
   }
 
   function addTagToActiveItem() {
     const value = newTag.trim();
-    if (!value || !activeItem) return;
+    if (!value) return;
 
-    // draft mode
-    if (draftItem && draftItem.id === activeItem.id) {
+    setMetaSaveStatus('idle');
+
+    if (draftItem && activeItem && draftItem.id === activeItem.id) {
       if (!draftItem.tags.includes(value)) {
         setDraftItem({
           ...draftItem,
@@ -310,24 +319,16 @@ export default function MediaManager() {
       return;
     }
 
-    // live item local-only
-    if (!activeItem.tags.includes(value)) {
-      setItems((prev) =>
-        prev.map((m) =>
-          m.id === activeItem.id
-            ? { ...m, tags: [...m.tags, value] }
-            : m
-        )
-      );
+    if (!detailTags.includes(value)) {
+      setDetailTags((prev) => [...prev, value]);
     }
     setNewTag('');
   }
 
   function removeTagFromActiveItem(tag: string) {
-    if (!activeItem) return;
+    setMetaSaveStatus('idle');
 
-    // draft
-    if (draftItem && draftItem.id === activeItem.id) {
+    if (draftItem && activeItem && draftItem.id === activeItem.id) {
       setDraftItem({
         ...draftItem,
         tags: draftItem.tags.filter((t) => t !== tag),
@@ -335,17 +336,51 @@ export default function MediaManager() {
       return;
     }
 
-    // live local-only
+    setDetailTags((prev) => prev.filter((t) => t !== tag));
+  }
+
+  // Save caption/tags of the current non-draft item to Supabase
+  async function handleSaveMeta() {
+    if (!activeItem) return;
+    if (draftItem && draftItem.id === activeItem.id) return;
+
+    setIsSavingMeta(true);
+    setMetaSaveStatus('idle');
+
+    // optimistic local update so cards reflect the new data
     setItems((prev) =>
       prev.map((m) =>
         m.id === activeItem.id
-          ? {
-              ...m,
-              tags: m.tags.filter((t) => t !== tag),
-            }
+          ? { ...m, caption: detailCaption, tags: detailTags }
           : m
       )
     );
+
+    try {
+      const res = await fetch('/api/media/update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: activeItem.id,
+          caption: detailCaption,
+          tags: detailTags,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        console.error('Failed to update media meta', body);
+        setMetaSaveStatus('error');
+      } else {
+        setMetaSaveStatus('success');
+      }
+    } catch (err) {
+      console.error('Unexpected error while updating media meta', err);
+      setMetaSaveStatus('error');
+    } finally {
+      setIsSavingMeta(false);
+      setTimeout(() => setMetaSaveStatus('idle'), 2000);
+    }
   }
 
   // ===== DRAG & DROP =====
@@ -390,7 +425,6 @@ export default function MediaManager() {
           transition flex flex-col
         `;
 
-    // Instead of bg-cover (which crops), we render an <img> in a fixed-height box
     const innerMediaClasses =
       layoutMode === 'grid'
         ? 'h-32 w-full'
@@ -444,7 +478,6 @@ export default function MediaManager() {
           className="cursor-pointer"
           onClick={() => onSelect(item.id)}
         >
-          {/* preview */}
           {item.type === 'image' ? (
             <div
               className={`${innerMediaClasses} flex items-center justify-center bg-black/40`}
@@ -469,7 +502,6 @@ export default function MediaManager() {
             </div>
           )}
 
-          {/* footer / info */}
           <div className="p-3 flex flex-col gap-2 text-[11px]">
             <div className="min-w-0">
               <div className="font-medium truncate text-[var(--color-foreground)]">
@@ -542,33 +574,54 @@ export default function MediaManager() {
     );
   }
 
-  // after drag, update local ordering (DB sync to come later)
+  // Persist updated sort_order values via secure API route
+  async function persistSortOrderToDB(updatedItems: MediaItem[]) {
+    try {
+      const payload = updatedItems.map((m) => ({
+        id: m.id,
+        sort_order: m.sort_order ?? 0,
+      }));
+
+      const res = await fetch('/api/media/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: payload }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        console.error('Failed to persist media sort_order', body);
+      }
+    } catch (err) {
+      console.error(
+        'Unexpected error while saving media sort_order',
+        err
+      );
+    }
+  }
+
+  // after drag, update local ordering AND persist to DB
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    // IDs currently visible on this page
     const currentIds = pagedItems.map((i) => i.id);
 
     const oldIndex = currentIds.indexOf(active.id as string);
     const newIndex = currentIds.indexOf(over.id as string);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // reorder within visible page subset
     const reorderedVisible = arrayMove(pagedItems, oldIndex, newIndex);
 
-    // map id -> new index in visible slice
     const newVisibleOrderMap: Record<string, number> = {};
     reorderedVisible.forEach((item, idx) => {
       newVisibleOrderMap[item.id] = idx;
     });
 
-    // take full list sorted by existing sort_order
     const fullSorted = [...items].sort(
       (a, b) => a.sort_order - b.sort_order
     );
 
-    // patch sort_order for items that were on the visible page
     const merged = fullSorted.map((it) => {
       if (newVisibleOrderMap[it.id] !== undefined) {
         return {
@@ -579,7 +632,6 @@ export default function MediaManager() {
       return it;
     });
 
-    // then flatten so sort_order is 0..N
     const resorted = merged.sort(
       (a, b) => a.sort_order - b.sort_order
     );
@@ -590,6 +642,7 @@ export default function MediaManager() {
     }));
 
     setItems(reindexed);
+    void persistSortOrderToDB(reindexed);
   }
 
   // ===== PAGER UI =====
@@ -909,7 +962,7 @@ export default function MediaManager() {
                       bg-transparent text-sm p-2 outline-none
                       focus:ring-2 focus:ring-teal-400/40
                     "
-                    value={activeItem.caption}
+                    value={detailCaption}
                     onChange={(e) => updateCaption(e.target.value)}
                   />
 
@@ -920,7 +973,7 @@ export default function MediaManager() {
                         hover:bg-[var(--color-foreground)]/10 transition
                         text-[11px] flex items-center justify-center
                       "
-                      title="This updates live; no separate Save button yet."
+                      title="Edit caption"
                     >
                       <FiEdit2 className="w-4 h-4" />
                     </div>
@@ -936,7 +989,7 @@ export default function MediaManager() {
 
                 {/* current tags */}
                 <div className="flex flex-wrap gap-2">
-                  {activeItem.tags.map((tag) => (
+                  {detailTags.map((tag) => (
                     <span
                       key={tag}
                       className="
@@ -960,7 +1013,7 @@ export default function MediaManager() {
                     </span>
                   ))}
 
-                  {activeItem.tags.length === 0 && (
+                  {detailTags.length === 0 && (
                     <span className="text-[11px] opacity-60">
                       No tags yet.
                     </span>
@@ -1028,6 +1081,31 @@ export default function MediaManager() {
                   <span>ID: {activeItem.id}</span>
                 </div>
               </div>
+
+              {/* UPDATE button for existing items */}
+              {(!draftItem || draftItem.id !== activeItem.id) && (
+                <div className="flex justify-end border-t border-[var(--color-foreground)]/20 pt-4">
+                  <button
+                    onClick={handleSaveMeta}
+                    disabled={isSavingMeta}
+                    className="
+                      text-sm font-medium px-4 py-2 rounded-md
+                      border border-teal-500/40
+                      bg-teal-500/10 text-teal-400
+                      hover:bg-teal-500/20 transition
+                      disabled:opacity-40 disabled:cursor-not-allowed
+                    "
+                  >
+                    {isSavingMeta
+                      ? 'Saving...'
+                      : metaSaveStatus === 'success'
+                      ? 'Saved'
+                      : metaSaveStatus === 'error'
+                      ? 'Error – Retry'
+                      : 'Update Details'}
+                  </button>
+                </div>
+              )}
 
               {/* draft action bar */}
               {draftItem && draftItem.id === activeItem.id && (
