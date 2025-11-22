@@ -17,6 +17,14 @@ import {
 
 type KpiTone = 'up' | 'down' | 'flat';
 
+type AgendaRow = {
+  id: string;
+  slot_date: string;
+  time_label: string;
+  title: string;
+  kind: string | null;
+};
+
 export default async function DashboardHome() {
   // Auth check
   const supabase = await supabaseServer();
@@ -63,6 +71,28 @@ export default async function DashboardHome() {
   const activeDesigns = activeDesignsCount ?? 0;
   const mediaItems = mediaAssetsCount ?? 0;
 
+  // TODAY'S AGENDA (mirrors calendar_agenda_slots)
+  const todayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const { data: agendaRowsRaw, error: agendaError } = await supabase
+    .from('calendar_agenda_slots')
+    .select('id, slot_date, time_label, title, kind')
+    .eq('user_id', user.id)
+    .eq('slot_date', todayKey)
+    .order('time_label', { ascending: true });
+
+  if (agendaError) {
+    console.error('Error loading today agenda', agendaError);
+  }
+
+  const agendaRows = (agendaRowsRaw ?? []) as AgendaRow[];
+
+  const todayAgenda = agendaRows.map((row) => ({
+    time: row.time_label,
+    label: row.title,
+    type: row.kind ?? '',
+  }));
+
   // KPIs (2 real, 2 placeholders until we wire analytics/socials)
   const kpis: { label: string; value: string; delta: string; tone: KpiTone }[] =
     [
@@ -92,20 +122,37 @@ export default async function DashboardHome() {
       },
     ];
 
-  // Still placeholder data (we’ll wire this later)
-  const todayAgenda = [
-    { time: '10:30 am', label: 'Finish resin prints', type: 'print' },
-    { time: '1:00 pm', label: 'Pickup – Order #RD-1043', type: 'pickup' },
-    { time: '3:15 pm', label: 'Send quote (cosplay armor)', type: 'quote' },
-    { time: '7:00 pm', label: 'Prep PLA+ profiles', type: 'admin' },
-  ];
-
   const pipeline = [
-    { stage: 'Leads', count: 3, items: ['FB DM – key holder', 'Instagram – name sign', 'Email – hinge'] },
-    { stage: 'Quoted', count: 2, items: ['Cosplay chest plate', 'RC chassis'] },
-    { stage: 'In Progress', count: 4, items: ['Dungeon tiles', 'Miniatures batch', 'Desk organizer'] },
-    { stage: 'Pickup', count: 1, items: ['Order #RD-1043'] },
-    { stage: 'Completed', count: 9, items: ['Past 30 days'] },
+    {
+      stage: 'Leads',
+      count: 3,
+      items: ['FB DM – key holder', 'Instagram – name sign', 'Email – hinge'],
+    },
+    {
+      stage: 'Quoted',
+      count: 2,
+      items: ['Cosplay chest plate', 'RC chassis'],
+    },
+    {
+      stage: 'In Progress',
+      count: 4,
+      items: ['Dungeon tiles', 'Miniatures batch', 'Desk organizer'],
+    },
+    {
+      stage: 'Pickup',
+      count: 1,
+      items: ['Order #RD-1043'],
+    },
+    {
+      stage: 'Completed',
+      count: 9,
+      items: ['Past 30 days'],
+    },
+    {
+      stage: 'On Hold',
+      count: 0,
+      items: ['Awaiting feedback'],
+    },
   ];
 
   const topDesigns = [
@@ -154,9 +201,10 @@ export default async function DashboardHome() {
         ))}
       </div>
 
-      {/* AGENDA + PIPELINE */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Agenda */}
+      {/* AGENDA + NOTES + PIPELINE */}
+      {/* On large screens: slightly wider outer columns, narrower middle column */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.8fr_1.35fr] gap-5">
+        {/* Agenda – wider */}
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-[#432389]/30 flex items-center justify-center">
@@ -164,31 +212,58 @@ export default async function DashboardHome() {
             </div>
             <div>
               <h2 className="text-sm font-semibold">Today&apos;s Agenda</h2>
-              <p className="text-[0.75rem] opacity-60">Quick tasks & print queue.</p>
+              <p className="text-[0.75rem] opacity-60">
+                Quick tasks &amp; print queue.
+              </p>
             </div>
           </div>
 
           <ul className="mt-2 space-y-2 text-sm">
-            {todayAgenda.map((item) => (
-              <li
-                key={item.label}
-                className="flex items-start gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2"
-              >
-                <span className="opacity-70 text-[0.75rem] mt-[2px] w-16 flex-shrink-0">
-                  {item.time}
-                </span>
-                <div>
-                  <div>{item.label}</div>
-                  <div className="text-[0.65rem] opacity-50 uppercase tracking-wide">
-                    {item.type}
-                  </div>
-                </div>
+            {todayAgenda.length === 0 ? (
+              <li className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-xs opacity-70">
+                No items scheduled for today yet. Add slots from the Calendar
+                page.
               </li>
-            ))}
+            ) : (
+              todayAgenda.map((item) => (
+                <li
+                  key={`${item.time}-${item.label}`}
+                  className="flex items-start gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2"
+                >
+                  <span className="opacity-70 text-[0.75rem] mt-[2px] w-16 flex-shrink-0">
+                    {item.time}
+                  </span>
+                  <div>
+                    <div>{item.label}</div>
+                    {item.type && (
+                      <div className="text-[0.65rem] opacity-50 uppercase tracking-wide">
+                        {item.type}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </div>
 
-        {/* Pipeline */}
+        {/* Notes placeholder – narrower middle column */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-sky-500/25 flex items-center justify-center">
+              <FiSettings />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold">Notes</h2>
+            </div>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center text-center text-sm opacity-70 border border-dashed border-white/15 rounded-lg px-4 py-6 bg-black/10">
+            Notes coming soon.
+          </div>
+        </div>
+
+        {/* Pipeline – 6 cards, 3×2 layout, all same size */}
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
@@ -196,18 +271,20 @@ export default async function DashboardHome() {
             </div>
             <div>
               <h2 className="text-sm font-semibold">Job Pipeline</h2>
-              <p className="text-[0.75rem] opacity-60">Lead → Completed flow overview.</p>
+              <p className="text-[0.75rem] opacity-60">
+                Lead → Completed flow overview.
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-[0.75rem]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[0.75rem]">
             {pipeline.map((stage) => (
               <div
                 key={stage.stage}
-                className="rounded-lg border border-white/8 bg-black/25 px-3 py-2"
+                className="rounded-lg border border-white/8 bg-black/25 px-3 py-3 min-h-[96px] flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{stage.stage}</span>
+                  <span className="font-medium truncate">{stage.stage}</span>
                   <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.7rem]">
                     {stage.count}
                   </span>
@@ -219,7 +296,9 @@ export default async function DashboardHome() {
                     </li>
                   ))}
                   {stage.items.length > 2 && (
-                    <li className="italic text-[0.7rem]">+ {stage.items.length - 2} more…</li>
+                    <li className="italic text-[0.7rem]">
+                      + {stage.items.length - 2} more…
+                    </li>
                   )}
                 </ul>
               </div>
@@ -308,7 +387,7 @@ export default async function DashboardHome() {
           </div>
 
           <ul className="text-[0.85rem] space-y-1 opacity-80">
-            <li>• Online & responding</li>
+            <li>• Online &amp; responding</li>
             <li>• Orders: accepting new jobs</li>
             <li>• Turnaround target: 3–5 days</li>
           </ul>
@@ -321,7 +400,7 @@ export default async function DashboardHome() {
               <FiSettings />
             </div>
             <div>
-              <h2 className="text-sm font-semibold">Brand & Hero</h2>
+              <h2 className="text-sm font-semibold">Brand &amp; Hero</h2>
               <p className="text-[0.75rem] opacity-60">Theme details.</p>
             </div>
           </div>
@@ -340,8 +419,8 @@ export default async function DashboardHome() {
               <FiAlertTriangle />
             </div>
             <div>
-              <h2 className="text-sm font-semibold">Storage & Notices</h2>
-              <p className="text-[0.75rem] opacity-60">Tips & limits.</p>
+              <h2 className="text-sm font-semibold">Storage &amp; Notices</h2>
+              <p className="text-[0.75rem] opacity-60">Tips &amp; limits.</p>
             </div>
           </div>
 
