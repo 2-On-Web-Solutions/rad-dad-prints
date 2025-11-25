@@ -5,6 +5,8 @@
 
 import { supabaseServer } from '@/lib/supabase/server';
 import LoginForm from './_parts/LoginForm';
+import SocialReachSettingsModal from './_parts/SocialReachSettingsModal';
+import StickyNotesCard from './_parts/StickyNotesCard';
 import {
   FiCalendar,
   FiUsers,
@@ -13,6 +15,7 @@ import {
   FiCheckCircle,
   FiSettings,
   FiAlertTriangle,
+  FiDownloadCloud,
 } from 'react-icons/fi';
 
 type KpiTone = 'up' | 'down' | 'flat';
@@ -23,7 +26,74 @@ type AgendaRow = {
   time_label: string;
   title: string;
   kind: string | null;
+  created_at: string;
 };
+
+type DesignTopRow = {
+  id: string;
+  title: string | null;
+  category_id: string | null;
+  design_files?: { count: number }[];
+};
+
+type BundleTopRow = {
+  id: string;
+  title: string | null;
+  category_id: string | null;
+  bundle_images?: { count: number }[];
+  bundle_files?: { count: number }[];
+};
+
+type SiteSettingsRow = {
+  instagram_url: string | null;
+  facebook_url: string | null;
+  x_url: string | null;
+  instagram_followers: number | null;
+  facebook_followers: number | null;
+  x_followers: number | null;
+  social_updated_at: string | null;
+};
+
+type CrmJobRow = {
+  id: string;
+  name: string | null;
+  topic: string | null;
+  status: string | null;
+};
+
+type NoteSummaryRow = {
+  id: string;
+  content: string;
+  note_date: string; // YYYY-MM-DD
+  created_at: string;
+};
+
+/** Convert '10:30am' or '10:30 am' → minutes since midnight. Fallback 0 if format is weird. */
+function timeLabelToMinutes(label: string): number {
+  const m = label.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (!m) return 0;
+
+  let hour = parseInt(m[1], 10);
+  const minute = parseInt(m[2], 10);
+  const period = m[3].toLowerCase();
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return 0;
+
+  if (period === 'pm' && hour !== 12) hour += 12;
+  if (period === 'am' && hour === 12) hour = 0;
+
+  return hour * 60 + minute;
+}
+
+/** Sort agenda rows chronologically, then by created_at as a tie-breaker. */
+function sortAgendaRows(rows: AgendaRow[]): AgendaRow[] {
+  return [...rows].sort((a, b) => {
+    const diff =
+      timeLabelToMinutes(a.time_label) - timeLabelToMinutes(b.time_label);
+    if (diff !== 0) return diff;
+    return a.created_at.localeCompare(b.created_at);
+  });
+}
 
 export default async function DashboardHome() {
   // Auth check
@@ -56,27 +126,101 @@ export default async function DashboardHome() {
   // SIGNED IN → OVERVIEW DASHBOARD
   // -------------------------
 
+  // Date helpers for agenda + analytics (LOCAL date, not UTC ISO)
+  const today = new Date();
+
+  const todayKey = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-'); // YYYY-MM-DD
+
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayKey = [
+    yesterday.getFullYear(),
+    String(yesterday.getMonth() + 1).padStart(2, '0'),
+    String(yesterday.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 6); // inclusive 7-day window
+
+  const weekStartKey = [
+    sevenDaysAgo.getFullYear(),
+    String(sevenDaysAgo.getMonth() + 1).padStart(2, '0'),
+    String(sevenDaysAgo.getDate()).padStart(2, '0'),
+  ].join('-');
+
   // Real data: counts from Supabase
-  const [{ count: activeDesignsCount }, { count: mediaAssetsCount }] =
-    await Promise.all([
-      supabase
-        .from('print_designs')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_active', true),
-      supabase
-        .from('media_assets')
-        .select('id', { count: 'exact', head: true }),
-    ]);
+  const [
+    { count: activeDesignsCount },
+    { count: activeBundlesCount },
+    { count: mediaAssetsCount },
+    { count: todaySessionsCount },
+    { count: weekSessionsCount },
+  ] = await Promise.all([
+    supabase
+      .from('print_designs')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true),
+    supabase
+      .from('bundles')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true),
+    supabase.from('media_assets').select('id', { count: 'exact', head: true }),
+    supabase
+      .from('analytics_sessions')
+      .select('session_id', { count: 'exact', head: true })
+      .eq('day', todayKey),
+    supabase
+      .from('analytics_sessions')
+      .select('session_id', { count: 'exact', head: true })
+      .gte('day', weekStartKey),
+  ]);
 
   const activeDesigns = activeDesignsCount ?? 0;
+  const activeBundles = activeBundlesCount ?? 0;
   const mediaItems = mediaAssetsCount ?? 0;
+  const todaySessions = todaySessionsCount ?? 0;
+  const weekSessions = weekSessionsCount ?? 0;
+
+  // Site settings (social links + followers)
+  const { data: siteSettingsRaw } = await supabase
+    .from('site_settings')
+    .select(
+      'instagram_url,facebook_url,x_url,instagram_followers,facebook_followers,x_followers,social_updated_at',
+    )
+    .limit(1)
+    .maybeSingle();
+
+  const siteSettings = siteSettingsRaw as SiteSettingsRow | null;
+
+  const socialFollowerTotal =
+    (siteSettings?.instagram_followers ?? 0) +
+    (siteSettings?.facebook_followers ?? 0) +
+    (siteSettings?.x_followers ?? 0);
+
+  const hasAnyFollowers = socialFollowerTotal > 0;
+  const hasAnySocialUrl =
+    !!siteSettings?.instagram_url ||
+    !!siteSettings?.facebook_url ||
+    !!siteSettings?.x_url;
+
+  const socialValue = hasAnyFollowers ? String(socialFollowerTotal) : '—';
+
+  const socialDelta = hasAnyFollowers
+    ? 'Total IG + FB + X followers'
+    : hasAnySocialUrl
+    ? 'No follower data yet'
+    : 'Connect socials';
+
+  const socialTone: KpiTone = hasAnyFollowers ? 'up' : 'flat';
 
   // TODAY'S AGENDA (mirrors calendar_agenda_slots)
-  const todayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-
   const { data: agendaRowsRaw, error: agendaError } = await supabase
     .from('calendar_agenda_slots')
-    .select('id, slot_date, time_label, title, kind')
+    .select('id, slot_date, time_label, title, kind, created_at')
     .eq('user_id', user.id)
     .eq('slot_date', todayKey)
     .order('time_label', { ascending: true });
@@ -85,7 +229,7 @@ export default async function DashboardHome() {
     console.error('Error loading today agenda', agendaError);
   }
 
-  const agendaRows = (agendaRowsRaw ?? []) as AgendaRow[];
+  const agendaRows = sortAgendaRows((agendaRowsRaw ?? []) as AgendaRow[]);
 
   const todayAgenda = agendaRows.map((row) => ({
     time: row.time_label,
@@ -93,7 +237,26 @@ export default async function DashboardHome() {
     type: row.kind ?? '',
   }));
 
-  // KPIs (2 real, 2 placeholders until we wire analytics/socials)
+  // -------------------------
+  // STICKY NOTES SUMMARY (TODAY / YESTERDAY) – SHARED NOTES
+  // -------------------------
+  const { data: notesRaw, error: notesError } = await supabase
+    .from('dashboard_notes')
+    .select('id, content, note_date, created_at')
+    .in('note_date', [todayKey, yesterdayKey]) // 🔹 no user_id filter → shared notes
+    .order('note_date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (notesError) {
+    console.error('Error loading dashboard notes summary', notesError);
+  }
+
+  const noteRows = (notesRaw ?? []) as NoteSummaryRow[];
+
+  const todayNotes = noteRows.filter((n) => n.note_date === todayKey);
+  const yesterdayNotes = noteRows.filter((n) => n.note_date === yesterdayKey);
+
+  // KPIs (4 real now: designs, bundles, media, sessions + social)
   const kpis: { label: string; value: string; delta: string; tone: KpiTone }[] =
     [
       {
@@ -103,6 +266,14 @@ export default async function DashboardHome() {
         tone: activeDesigns ? 'up' : 'flat',
       },
       {
+        label: 'Active Bundles',
+        value: String(activeBundles),
+        delta: activeBundles
+          ? 'Bundle sets in catalog'
+          : 'Create your first bundle',
+        tone: activeBundles ? 'up' : 'flat',
+      },
+      {
         label: 'Media Library Items',
         value: String(mediaItems),
         delta: mediaItems ? 'Images & videos stored' : 'Upload some media',
@@ -110,61 +281,167 @@ export default async function DashboardHome() {
       },
       {
         label: 'Site Sessions',
-        value: '—',
-        delta: 'Connect analytics',
-        tone: 'flat',
+        value: String(todaySessions),
+        delta: weekSessions
+          ? `Last 7 days: ${weekSessions}`
+          : 'No analytics data yet',
+        tone: weekSessions ? 'up' : 'flat',
       },
       {
         label: 'Social Reach',
-        value: '—',
-        delta: 'Connect socials',
-        tone: 'flat',
+        value: socialValue,
+        delta: socialDelta,
+        tone: socialTone,
       },
     ];
 
-  const pipeline = [
+  // -------------------------
+  // TOP DESIGNS / BUNDLES / DOWNLOADS
+  // -------------------------
+
+  const [
+    { data: designRows, error: designError },
+    { data: bundleRows, error: bundleError },
+    { data: designCategories },
+    { data: bundleCategories },
+  ] = await Promise.all([
+    supabase
+      .from('print_designs')
+      .select('id,title,category_id,design_files(count)')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .limit(10),
+    supabase
+      .from('bundles')
+      .select('id,title,category_id,bundle_images(count),bundle_files(count)')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .limit(10),
+    supabase.from('design_categories').select('slug,label'),
+    supabase.from('bundle_categories').select('id,label'),
+  ]);
+
+  if (designError) {
+    console.error('Error loading top designs', designError);
+  }
+  if (bundleError) {
+    console.error('Error loading top bundles', bundleError);
+  }
+
+  const designCatMap = new Map<string, string>(
+    (designCategories ?? []).map((c: any) => [
+      c.slug as string,
+      c.label as string,
+    ]),
+  );
+
+  const bundleCatMap = new Map<string, string>(
+    (bundleCategories ?? []).map((c: any) => [c.id as string, c.label as string]),
+  );
+
+  const designSource = (designRows ?? []) as DesignTopRow[];
+  const bundleSource = (bundleRows ?? []) as BundleTopRow[];
+
+  const topDesigns = designSource.slice(0, 3).map((row) => ({
+    title: row.title ?? 'Untitled design',
+    tag:
+      (row.category_id && designCatMap.get(row.category_id)) ||
+      row.category_id ||
+      'Uncategorized',
+    // views/orders are placeholders until we wire real per-design analytics
+    views: '—' as string | number,
+    orders: row.design_files?.[0]?.count ?? 0,
+  }));
+
+  const mostDownloaded = [...designSource]
+    .sort(
+      (a, b) =>
+        (b.design_files?.[0]?.count ?? 0) -
+        (a.design_files?.[0]?.count ?? 0),
+    )
+    .slice(0, 3)
+    .map((row) => ({
+      title: row.title ?? 'Untitled design',
+      tag:
+        (row.category_id && designCatMap.get(row.category_id)) ||
+        row.category_id ||
+        'Uncategorized',
+      downloads: row.design_files?.[0]?.count ?? 0,
+    }));
+
+  const topBundles = bundleSource.slice(0, 3).map((row) => ({
+    title: row.title ?? 'Untitled bundle',
+    tag:
+      (row.category_id && bundleCatMap.get(row.category_id)) ||
+      row.category_id ||
+      'Uncategorized',
+    // using image/file counts as rough “view/order” signals for now
+    views: row.bundle_images?.[0]?.count ?? 0,
+    orders: row.bundle_files?.[0]?.count ?? 0,
+  }));
+
+  // -------------------------
+  // PIPELINE (CRM JOBS)
+  // -------------------------
+
+  const { data: crmJobsRaw, error: crmError } = await supabase
+    .from('crm_jobs')
+    .select('id,name,topic,status')
+    .order('created_at', { ascending: false });
+
+  if (crmError) {
+    console.error('Error loading CRM jobs', crmError);
+  }
+
+  const crmJobs = (crmJobsRaw ?? []) as CrmJobRow[];
+
+  const topPipelineStages = ['pending', 'working', 'completed'].map((key) => {
+    const label =
+      key === 'pending'
+        ? 'Pending'
+        : key === 'working'
+        ? 'Working'
+        : 'Completed';
+
+    const jobsForStage = crmJobs.filter(
+      (job) => (job.status ?? '').toLowerCase() === key,
+    );
+
+    return {
+      id: key,
+      label,
+      count: jobsForStage.length,
+      items: jobsForStage.slice(0, 3).map((job) => {
+        const main = job.topic || job.name || 'Job';
+        return main.length > 40 ? `${main.slice(0, 37)}…` : main;
+      }),
+      connected: true as const,
+    };
+  });
+
+  const pipelineStages = [
+    ...topPipelineStages,
     {
-      stage: 'Leads',
-      count: 3,
-      items: ['FB DM – key holder', 'Instagram – name sign', 'Email – hinge'],
-    },
-    {
-      stage: 'Quoted',
-      count: 2,
-      items: ['Cosplay chest plate', 'RC chassis'],
-    },
-    {
-      stage: 'In Progress',
-      count: 4,
-      items: ['Dungeon tiles', 'Miniatures batch', 'Desk organizer'],
-    },
-    {
-      stage: 'Pickup',
-      count: 1,
-      items: ['Order #RD-1043'],
-    },
-    {
-      stage: 'Completed',
-      count: 9,
-      items: ['Past 30 days'],
-    },
-    {
-      stage: 'On Hold',
+      id: 'leads',
+      label: 'Leads',
       count: 0,
-      items: ['Awaiting feedback'],
+      items: [] as string[],
+      connected: false as const,
     },
-  ];
-
-  const topDesigns = [
-    { title: 'Modular Dice Tower', views: 132, orders: 7, tag: 'Tabletop' },
-    { title: 'Cable Management Clips', views: 98, orders: 12, tag: 'Desk / Office' },
-    { title: 'Hex Terrain Tiles', views: 76, orders: 5, tag: 'Wargaming' },
-  ];
-
-  const topBundles = [
-    { title: 'Desk Starter Kit', views: 64, orders: 6, tag: 'Bundle' },
-    { title: 'Dungeon Pack Vol. 1', views: 54, orders: 4, tag: 'Bundle' },
-    { title: 'Workshop Wall-Mount Kit', views: 41, orders: 3, tag: 'Bundle' },
+    {
+      id: 'paused',
+      label: 'Paused',
+      count: 0,
+      items: [] as string[],
+      connected: false as const,
+    },
+    {
+      id: 'overdue',
+      label: 'Overdue',
+      count: 0,
+      items: [] as string[],
+      connected: false as const,
+    },
   ];
 
   return (
@@ -178,13 +455,20 @@ export default async function DashboardHome() {
       </header>
 
       {/* KPI ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {kpis.map((kpi) => (
           <div
             key={kpi.label}
             className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 backdrop-blur-sm"
           >
-            <div className="text-xs uppercase opacity-70">{kpi.label}</div>
+            {/* label + optional gear for Social Reach */}
+            <div className="text-xs uppercase opacity-70 flex items-center justify-between">
+              <span>{kpi.label}</span>
+              {kpi.label === 'Social Reach' && (
+                <SocialReachSettingsModal siteSettings={siteSettings} />
+              )}
+            </div>
+
             <div className="text-2xl font-semibold mt-1">{kpi.value}</div>
             <div
               className={`text-xs mt-1 ${
@@ -204,9 +488,9 @@ export default async function DashboardHome() {
       {/* AGENDA + NOTES + PIPELINE */}
       {/* On large screens: slightly wider outer columns, narrower middle column */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.8fr_1.35fr] gap-5">
-        {/* Agenda – wider */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
+        {/* Agenda – wider, fixed height with scrollable list */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3 h-[300px]">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <div className="h-8 w-8 rounded-lg bg-[#432389]/30 flex items-center justify-center">
               <FiCalendar />
             </div>
@@ -218,53 +502,47 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <ul className="mt-2 space-y-2 text-sm">
-            {todayAgenda.length === 0 ? (
-              <li className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-xs opacity-70">
-                No items scheduled for today yet. Add slots from the Calendar
-                page.
-              </li>
-            ) : (
-              todayAgenda.map((item) => (
-                <li
-                  key={`${item.time}-${item.label}`}
-                  className="flex items-start gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2"
-                >
-                  <span className="opacity-70 text-[0.75rem] mt-[2px] w-16 flex-shrink-0">
-                    {item.time}
-                  </span>
-                  <div>
-                    <div>{item.label}</div>
-                    {item.type && (
-                      <div className="text-[0.65rem] opacity-50 uppercase tracking-wide">
-                        {item.type}
-                      </div>
-                    )}
-                  </div>
+          <div className="mt-2 flex-1 min-h-0">
+            <ul className="space-y-2 text-sm h-full overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              {todayAgenda.length === 0 ? (
+                <li className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-xs opacity-70">
+                  No items scheduled for today yet. Add slots from the Calendar
+                  page.
                 </li>
-              ))
-            )}
-          </ul>
+              ) : (
+                todayAgenda.map((item) => (
+                  <li
+                    key={`${item.time}-${item.label}`}
+                    className="flex items-start gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2"
+                  >
+                    <span className="opacity-70 text-[0.75rem] mt-[2px] w-16 flex-shrink-0">
+                      {item.time}
+                    </span>
+                    <div>
+                      <div>{item.label}</div>
+                      {item.type && (
+                        <div className="text-[0.65rem] opacity-50 uppercase tracking-wide">
+                          {item.type}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
         </div>
 
-        {/* Notes placeholder – narrower middle column */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-sky-500/25 flex items-center justify-center">
-              <FiSettings />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold">Notes</h2>
-            </div>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center text-center text-sm opacity-70 border border-dashed border-white/15 rounded-lg px-4 py-6 bg-black/10">
-            Notes coming soon.
-          </div>
+        {/* Notes – sticky-note card now wired to Supabase summary */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3 h-[300px]">
+          <StickyNotesCard
+            todayNotes={todayNotes}
+            yesterdayNotes={yesterdayNotes}
+          />
         </div>
 
-        {/* Pipeline – 6 cards, 3×2 layout, all same size */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
+        {/* Pipeline – 6 cards, 3×2 layout, all same size & height */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3 h-[300px]">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
               <FiUsers />
@@ -277,38 +555,52 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[0.75rem]">
-            {pipeline.map((stage) => (
+          <div className="flex-1 min-h-0 grid grid-cols-2 sm:grid-cols-3 grid-rows-2 gap-2 text-[0.75rem]">
+            {pipelineStages.map((stage) => (
               <div
-                key={stage.stage}
-                className="rounded-lg border border-white/8 bg-black/25 px-3 py-3 min-h-[96px] flex flex-col justify-between"
+                key={stage.id}
+                className="rounded-lg border border-white/8 bg-black/25 px-3 py-3 flex flex-col"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium truncate">{stage.stage}</span>
-                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.7rem]">
-                    {stage.count}
-                  </span>
-                </div>
-                <ul className="opacity-70 mt-1 space-y-0.5">
-                  {stage.items.slice(0, 2).map((i) => (
-                    <li key={i} className="truncate">
-                      • {i}
-                    </li>
-                  ))}
-                  {stage.items.length > 2 && (
-                    <li className="italic text-[0.7rem]">
-                      + {stage.items.length - 2} more…
-                    </li>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-medium truncate">{stage.label}</span>
+                  {stage.connected && (
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.7rem]">
+                      {stage.count}
+                    </span>
                   )}
-                </ul>
+                </div>
+
+                {stage.connected ? (
+                  stage.count === 0 ? (
+                    <p className="text-[0.7rem] italic opacity-60 mt-1">
+                      No jobs yet.
+                    </p>
+                  ) : (
+                    <ul className="opacity-70 mt-1 space-y-0.5">
+                      {stage.items.slice(0, 2).map((i, idx) => (
+                        <li key={`${stage.id}-${idx}`} className="truncate">
+                          • {i}
+                        </li>
+                      ))}
+                      {stage.items.length > 2 && (
+                        <li className="italic text-[0.7rem]">
+                          + {stage.items.length - 2} more…
+                        </li>
+                      )}
+                    </ul>
+                  )
+                ) : (
+                  // bottom row: just keep the title, nothing else
+                  <div className="flex-1" />
+                )}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* TOP DESIGNS + BUNDLES */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* TOP DESIGNS + BUNDLES + DOWNLOADS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Designs */}
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -337,6 +629,11 @@ export default async function DashboardHome() {
                 </div>
               </div>
             ))}
+            {topDesigns.length === 0 && (
+              <div className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-xs opacity-70">
+                No designs found yet.
+              </div>
+            )}
           </div>
         </div>
 
@@ -347,8 +644,10 @@ export default async function DashboardHome() {
               <FiPackage />
             </div>
             <div>
-              <h2 className="text-sm font-semibold">Best-Selling Bundles</h2>
-              <p className="text-[0.75rem] opacity-60">Your top-performing sets.</p>
+              <h2 className="text-sm font-semibold">Top Viewed Bundles</h2>
+              <p className="text-[0.75rem] opacity-60">
+                Your top-performing sets.
+              </p>
             </div>
           </div>
 
@@ -368,6 +667,48 @@ export default async function DashboardHome() {
                 </div>
               </div>
             ))}
+            {topBundles.length === 0 && (
+              <div className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-xs opacity-70">
+                No bundles found yet.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Most Downloaded */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-8 w-8 rounded-lg bg-teal-500/25 flex items-center justify-center">
+              <FiDownloadCloud />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold">Most Downloaded</h2>
+              <p className="text-[0.75rem] opacity-60">
+                Designs with the most STL files.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-sm">
+            {mostDownloaded.map((d) => (
+              <div
+                key={d.title}
+                className="flex items-center gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{d.title}</div>
+                  <div className="text-[0.75rem] opacity-60">{d.tag}</div>
+                </div>
+                <div className="text-right text-[0.75rem] opacity-70">
+                  ⬇️ {d.downloads}
+                </div>
+              </div>
+            ))}
+            {mostDownloaded.length === 0 && (
+              <div className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-xs opacity-70">
+                No downloadable designs yet.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -382,7 +723,9 @@ export default async function DashboardHome() {
             </div>
             <div>
               <h2 className="text-sm font-semibold">Site Status</h2>
-              <p className="text-[0.75rem] opacity-60">Basic health indicators.</p>
+              <p className="text-[0.75rem] opacity-60">
+                Basic health indicators.
+              </p>
             </div>
           </div>
 

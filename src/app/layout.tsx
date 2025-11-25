@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import ThemeProviderClient from "./components/ThemeProviderClient"; // ✅ our wrapper
+import AnalyticsTracker from "./components/AnalyticsTracker"; // ✅ site sessions tracker
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -11,7 +12,6 @@ const dancingScript = Dancing_Script({
   weight: ["400", "700"],
 });
 
-// --- EDIT THIS TO YOUR REAL DOMAIN ---
 const SITE_URL = "https://raddadprints.com";
 
 export const metadata: Metadata = {
@@ -106,6 +106,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         {/* ✅ Wrap entire app in the theme provider */}
         <ThemeProviderClient>
+          {/* ✅ Site sessions tracker (client-side) */}
+          <AnalyticsTracker />
           {children}
         </ThemeProviderClient>
       </body>

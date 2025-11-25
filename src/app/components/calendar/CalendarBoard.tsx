@@ -59,6 +59,33 @@ function isSameDay(a: Date, b: Date) {
   );
 }
 
+/** Convert '10:30am' → minutes since midnight. Fallback 0 if format is weird. */
+function timeLabelToMinutes(label: string): number {
+  const m = label.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (!m) return 0;
+
+  let hour = parseInt(m[1], 10);
+  const minute = parseInt(m[2], 10);
+  const period = m[3].toLowerCase();
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return 0;
+
+  if (period === 'pm' && hour !== 12) hour += 12;
+  if (period === 'am' && hour === 12) hour = 0;
+
+  return hour * 60 + minute;
+}
+
+/** Sort slots by time (then by created_at as a tie-breaker). */
+function sortAgendaSlots(slots: AgendaRow[]): AgendaRow[] {
+  return [...slots].sort((a, b) => {
+    const diff =
+      timeLabelToMinutes(a.time_label) - timeLabelToMinutes(b.time_label);
+    if (diff !== 0) return diff;
+    return a.created_at.localeCompare(b.created_at);
+  });
+}
+
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function CalendarBoard({ userId }: { userId: string }) {
@@ -76,9 +103,11 @@ export default function CalendarBoard({ userId }: { userId: string }) {
   const [agendaLoading, setAgendaLoading] = useState(false);
   const [agendaSaving, setAgendaSaving] = useState(false);
 
-  // Add-modal state
+  // Add-modal state (time split into hour / minute / period)
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addTime, setAddTime] = useState('');
+  const [addHour, setAddHour] = useState('10');
+  const [addMinute, setAddMinute] = useState('00');
+  const [addPeriod, setAddPeriod] = useState<'am' | 'pm'>('am');
   const [addTitle, setAddTitle] = useState('');
   const [addKind, setAddKind] = useState('');
 
@@ -86,6 +115,23 @@ export default function CalendarBoard({ userId }: { userId: string }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AgendaRow | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+
+  // Helper to build time_label from hour/minute/period
+  function buildTimeLabel(): string {
+    let h = parseInt(addHour || '0', 10);
+    let m = parseInt(addMinute || '0', 10);
+
+    if (!Number.isFinite(h) || h < 1) h = 12;
+    if (h > 12) h = 12;
+
+    if (!Number.isFinite(m) || m < 0) m = 0;
+    if (m > 59) m = 59;
+
+    const hourStr = String(h);
+    const minuteStr = String(m).padStart(2, '0');
+
+    return `${hourStr}:${minuteStr}${addPeriod}`;
+  }
 
   // ---------- LOAD NOTES FOR VISIBLE MONTH ----------
   useEffect(() => {
@@ -137,7 +183,7 @@ export default function CalendarBoard({ userId }: { userId: string }) {
         .select('*')
         .eq('user_id', userId)
         .eq('slot_date', selectedKey)
-        .order('time_label', { ascending: true })
+        .order('time_label', { ascending: true }) // still fine; we re-sort anyway
         .order('created_at', { ascending: true });
 
       if (cancelled) return;
@@ -146,7 +192,8 @@ export default function CalendarBoard({ userId }: { userId: string }) {
         console.error('agenda load error', error);
         setAgendaSlots([]);
       } else {
-        setAgendaSlots((data as AgendaRow[]) ?? []);
+        const rows = (data as AgendaRow[]) ?? [];
+        setAgendaSlots(sortAgendaSlots(rows));
       }
       setAgendaLoading(false);
     })();
@@ -213,7 +260,9 @@ export default function CalendarBoard({ userId }: { userId: string }) {
 
   // ---------- AGENDA HANDLERS ----------
   function openAddModal() {
-    setAddTime('');
+    setAddHour('10');
+    setAddMinute('00');
+    setAddPeriod('am');
     setAddTitle('');
     setAddKind('');
     setIsAddOpen(true);
@@ -225,10 +274,11 @@ export default function CalendarBoard({ userId }: { userId: string }) {
 
   async function handleConfirmAdd(e?: FormEvent) {
     if (e) e.preventDefault();
-    const trimmedTitle = addTitle.trim();
-    const trimmedTime = addTime.trim();
 
-    if (!trimmedTitle || !trimmedTime) return;
+    const trimmedTitle = addTitle.trim();
+    if (!trimmedTitle) return;
+
+    const timeLabel = buildTimeLabel();
 
     setAgendaSaving(true);
     const supabase = supabaseBrowser;
@@ -237,7 +287,7 @@ export default function CalendarBoard({ userId }: { userId: string }) {
       .insert({
         user_id: userId,
         slot_date: selectedKey,
-        time_label: trimmedTime,
+        time_label: timeLabel,
         title: trimmedTitle,
         kind: addKind.trim() || null,
       })
@@ -247,11 +297,9 @@ export default function CalendarBoard({ userId }: { userId: string }) {
     if (error) {
       console.error('add agenda error', error);
     } else if (data) {
-      setAgendaSlots((prev) => {
-        const next = [...prev, data as AgendaRow];
-        // keep sorted by time label
-        return next.sort((a, b) => a.time_label.localeCompare(b.time_label));
-      });
+      setAgendaSlots((prev) =>
+        sortAgendaSlots([...prev, data as AgendaRow]),
+      );
       closeAddModal();
     }
     setAgendaSaving(false);
@@ -284,7 +332,9 @@ export default function CalendarBoard({ userId }: { userId: string }) {
     if (error) {
       console.error('delete agenda error', error);
     } else {
-      setAgendaSlots((prev) => prev.filter((slot) => slot.id !== deleteTarget.id));
+      setAgendaSlots((prev) =>
+        prev.filter((slot) => slot.id !== deleteTarget.id),
+      );
       closeDeleteModal();
     }
     setAgendaSaving(false);
@@ -450,8 +500,8 @@ export default function CalendarBoard({ userId }: { userId: string }) {
           </div>
 
           {/* AGENDA CARD (mirrors Overview style) */}
-          <div className="mt-6 flex-1 min-h-0">
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3 h-full">
+          <div className="mt-6">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3 h-[372px]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-lg bg-[#432389]/30 flex items-center justify-center">
@@ -483,7 +533,7 @@ export default function CalendarBoard({ userId }: { userId: string }) {
               </div>
 
               {/* List */}
-              <div className="space-y-2 text-sm overflow-y-auto flex-1 min-h-0 pr-1">
+              <div className="space-y-2 text-sm overflow-y-auto flex-1 min-h-0 pr-1 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                 {agendaSlots.length === 0 && !agendaLoading && (
                   <div className="text-xs opacity-60">
                     No agenda for this day yet. Click the + button to add one.
@@ -545,21 +595,44 @@ export default function CalendarBoard({ userId }: { userId: string }) {
               })}
               .
             </p>
-            <form
-              className="space-y-3 text-sm"
-              onSubmit={handleConfirmAdd}
-            >
+            <form className="space-y-3 text-sm" onSubmit={handleConfirmAdd}>
               <div className="space-y-1">
                 <label className="text-[0.75rem] opacity-70">
                   Time<span className="text-rose-300">*</span>
                 </label>
-                <input
-                  value={addTime}
-                  onChange={(e) => setAddTime(e.target.value)}
-                  placeholder="e.g., 10:30 am"
-                  className="w-full rounded-md border border-[var(--color-foreground)]/30 bg-[var(--color-background)] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-400/40"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={addHour}
+                    onChange={(e) => setAddHour(e.target.value)}
+                    className="w-16 rounded-md border border-[var(--color-foreground)]/30 bg-[var(--color-background)] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-400/40"
+                    placeholder="10"
+                  />
+                  <span className="text-sm opacity-70">:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={addMinute}
+                    onChange={(e) => setAddMinute(e.target.value)}
+                    className="w-16 rounded-md border border-[var(--color-foreground)]/30 bg-[var(--color-background)] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-400/40"
+                    placeholder="30"
+                  />
+                  <select
+                    value={addPeriod}
+                    onChange={(e) =>
+                      setAddPeriod(e.target.value as 'am' | 'pm')
+                    }
+                    className="rounded-md border border-[var(--color-foreground)]/30 bg-[var(--color-background)] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-400/40"
+                  >
+                    <option value="am">am</option>
+                    <option value="pm">pm</option>
+                  </select>
+                </div>
               </div>
+
               <div className="space-y-1">
                 <label className="text-[0.75rem] opacity-70">
                   Title<span className="text-rose-300">*</span>
@@ -594,7 +667,10 @@ export default function CalendarBoard({ userId }: { userId: string }) {
                 <button
                   type="submit"
                   disabled={
-                    !addTime.trim() || !addTitle.trim() || agendaSaving
+                    !addHour.trim() ||
+                    !addMinute.trim() ||
+                    !addTitle.trim() ||
+                    agendaSaving
                   }
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-md border border-teal-400/70 text-teal-100 hover:bg-teal-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -661,9 +737,7 @@ export default function CalendarBoard({ userId }: { userId: string }) {
                 </button>
                 <button
                   type="submit"
-                  disabled={
-                    deleteConfirm !== 'DELETE' || agendaSaving
-                  }
+                  disabled={deleteConfirm !== 'DELETE' || agendaSaving}
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-md border border-rose-400/80 text-rose-100 hover:bg-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <FiTrash2 />

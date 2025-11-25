@@ -1,6 +1,6 @@
-/** 
- /src/app/dashboard/layout.tsx
-*/
+/**
+ * /src/app/dashboard/layout.tsx
+ */
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ import {
   FiUsers,
   FiSettings,
   FiCalendar,
+  FiEdit3, // ✨ NEW — note/pencil icon
 } from 'react-icons/fi';
 import ThemeToggle from '../components/ThemeToggle';
 
@@ -27,7 +28,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <>
       {/* DASHBOARD-ONLY GLOBAL OVERRIDES */}
       <style
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{
           __html: `
             /* Kill the reserved scrollbar gutter + forced scroll from globals
@@ -54,7 +54,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           color: 'var(--color-foreground)',
         }}
       >
-        {/* SIDEBAR (locked dark style) */}
+        {/* SIDEBAR */}
         <aside
           className="
             w-[64px] shrink-0
@@ -68,6 +68,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             borderRightColor: 'rgba(255,255,255,0.1)',
           }}
         >
+          {/* Overview */}
           <Link
             href="/dashboard"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -76,6 +77,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <FiHome className="text-2xl" />
           </Link>
 
+          {/* Calendar */}
           <Link
             href="/dashboard/calendar"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -84,6 +86,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <FiCalendar className="text-2xl" />
           </Link>
 
+          {/* CRM */}
           <Link
             href="/dashboard/crm"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -92,6 +95,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <FiUsers className="text-2xl" />
           </Link>
 
+          {/* NOTES — NEW TAB */}
+          <Link
+            href="/dashboard/notes"
+            className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
+            title="Notes Manager"
+          >
+            <FiEdit3 className="text-2xl" />
+          </Link>
+
+          {/* Media */}
           <Link
             href="/dashboard/media"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -100,6 +113,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <FiImage className="text-2xl" />
           </Link>
 
+          {/* Designs */}
           <Link
             href="/dashboard/designs"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -108,6 +122,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <FiPrinter className="text-2xl" />
           </Link>
 
+          {/* Bundles */}
           <Link
             href="/dashboard/bundles"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -116,6 +131,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <FiPackage className="text-2xl" />
           </Link>
 
+          {/* Site Settings */}
           <Link
             href="/dashboard/site"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -135,10 +151,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             text-[var(--color-foreground)]
             transition-colors duration-300
           "
-          style={{
-            backgroundColor: 'var(--color-background)',
-            color: 'var(--color-foreground)',
-          }}
         >
           {/* HEADER */}
           <header
@@ -199,13 +211,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               min-h-0
               overflow-y-auto
               p-4 md:p-8
-              bg-[var(--color-background)]
-              text-[var(--color-foreground)]
             "
-            style={{
-              backgroundColor: 'var(--color-background)',
-              color: 'var(--color-foreground)',
-            }}
           >
             {children}
           </main>
