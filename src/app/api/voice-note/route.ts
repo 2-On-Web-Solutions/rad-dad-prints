@@ -2,20 +2,23 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 
-const VOICE_NOTE_API_KEY = process.env.VOICE_NOTE_API_KEY ?? '';
-const VOICE_NOTE_USER_ID = process.env.VOICE_NOTE_USER_ID ?? '';
+const VOICE_NOTE_API_KEY = (process.env.VOICE_NOTE_API_KEY ?? '').trim();
+const VOICE_NOTE_USER_ID = (process.env.VOICE_NOTE_USER_ID ?? '').trim();
 
 export async function POST(req: Request) {
   // Validate envs
   if (!VOICE_NOTE_API_KEY || !VOICE_NOTE_USER_ID) {
-    console.error('Voice note env vars missing');
+    console.error('Voice note env vars missing', {
+      hasKey: !!VOICE_NOTE_API_KEY,
+      hasUser: !!VOICE_NOTE_USER_ID,
+    });
     return NextResponse.json(
       { ok: false, error: 'Server is missing voice-note env vars' },
       { status: 500 },
     );
   }
 
-  const headerKey = req.headers.get('x-voice-note-key') ?? '';
+  const headerKey = (req.headers.get('x-voice-note-key') ?? '').trim();
 
   if (!headerKey || headerKey !== VOICE_NOTE_API_KEY) {
     return NextResponse.json(
@@ -47,7 +50,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabase
     .from('dashboard_notes')
     .insert({
-      user_id: VOICE_NOTE_USER_ID, // 👈 REQUIRED for RLS
+      user_id: VOICE_NOTE_USER_ID,
       note_date: dateKey,
       content: text,
       source: 'voice',
