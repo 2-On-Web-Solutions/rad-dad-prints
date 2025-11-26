@@ -133,7 +133,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
           {/* Site Settings */}
           <Link
-            href="/dashboard/site"
+            href="/dashboard/settings"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
             title="Site Settings"
           >
