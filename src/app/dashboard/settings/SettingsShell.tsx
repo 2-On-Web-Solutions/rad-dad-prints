@@ -8,6 +8,7 @@ import ChatbotSettings from './ChatbotSettings';
 import TaglineSettings from './TaglineSettings';
 import HeroMediaSettings from './HeroMediaSettings';
 import ThemeSettings from './ThemeSettings';
+import SiteStatusSettings from './SiteStatusSettings'; // NEW 9th block
 
 export default function SettingsShell() {
   return (
@@ -17,7 +18,8 @@ export default function SettingsShell() {
         <div>
           <h1 className="text-3xl font-semibold">Settings & Site Controls</h1>
           <p className="opacity-70 max-w-[60ch] text-sm">
-            Tweak your storefront content, branding, chatbot, and theme without touching code.
+            Tweak your storefront content, branding, chatbot, and theme without
+            touching code.
           </p>
         </div>
 
@@ -27,16 +29,23 @@ export default function SettingsShell() {
         </div>
       </header>
 
-      {/* Grid of cards (Overview-style) */}
+      {/* New 3x3 Grid layout */}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <ServicesSettings />
-        <ReviewsSettings />
-        <SocialLinksSettings />
-        <LegalSettings />
-        <ChatbotSettings />
-        <TaglineSettings />
+
+        {/* === TOP ROW === */}
         <HeroMediaSettings />
         <ThemeSettings />
+        <TaglineSettings />
+
+        {/* === MIDDLE ROW === */}
+        <ServicesSettings />
+        <ReviewsSettings />
+        <ChatbotSettings />
+
+        {/* === BOTTOM ROW === */}
+        <LegalSettings />
+        <SocialLinksSettings />
+        <SiteStatusSettings />  {/* NEW 9th card */}
       </div>
     </div>
   );

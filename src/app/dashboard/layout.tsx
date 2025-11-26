@@ -4,6 +4,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabaseServer } from '@/lib/supabase/server';
 import {
   FiHome,
@@ -13,12 +14,12 @@ import {
   FiUsers,
   FiSettings,
   FiCalendar,
-  FiEdit3, // ✨ NEW — note/pencil icon
+  FiEdit3,
 } from 'react-icons/fi';
 import ThemeToggle from '../components/ThemeToggle';
+import UtilityDock from './UtilityDock';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  // auth session
   const supabase = await supabaseServer();
   const {
     data: { user },
@@ -26,12 +27,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <>
-      {/* DASHBOARD-ONLY GLOBAL OVERRIDES */}
+      {/* dashboard-only scroll overrides */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            /* Kill the reserved scrollbar gutter + forced scroll from globals
-               but ONLY while we're in the dashboard layout */
             html, body {
               overflow: hidden !important;
               scrollbar-gutter: auto !important;
@@ -40,7 +39,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         }}
       />
 
-      {/* App shell */}
       <div
         className="
           flex
@@ -95,7 +93,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <FiUsers className="text-2xl" />
           </Link>
 
-          {/* NOTES — NEW TAB */}
+          {/* NOTES tab (manager) */}
           <Link
             href="/dashboard/notes"
             className="w-12 h-12 grid place-items-center rounded-xl hover:bg-white/5 text-white"
@@ -156,7 +154,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <header
             className="
               h-14 shrink-0
-              flex items-center justify-end
+              flex items-center justify-between
               gap-2 sm:gap-3
               px-3 sm:px-4
               border-b
@@ -171,37 +169,56 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 '1px solid color-mix(in oklch, var(--color-foreground) 12%, transparent)',
             }}
           >
-            {user ? (
-              <>
-                <span className="hidden sm:block text-sm opacity-70 whitespace-nowrap">
-                  {user.email}
-                </span>
+            {/* LEFT: utility buttons + logo */}
+            <div className="flex items-center gap-4">
+              <UtilityDock />
 
-                <ThemeToggle />
+              <Link href="/dashboard" className="flex items-center">
+                <Image
+                  src="/assets/rad-dad-prints02.png"
+                  alt="Rad Dad Prints"
+                  width={220}
+                  height={48}
+                  className="h-15 w-auto"
+                  priority
+                />
+              </Link>
+            </div>
 
-                <form action="/api/auth/logout" method="post">
-                  <button
-                    className="
-                      rounded-xl px-4 py-2 text-sm
-                      transition-colors duration-200
-                    "
-                    style={{
-                      border:
-                        '1px solid color-mix(in oklch, var(--color-foreground) 20%, transparent)',
-                      backgroundColor:
-                        'color-mix(in oklch, var(--color-background) 90%, var(--color-foreground) 10%)',
-                    }}
-                  >
-                    Logout
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
-                <ThemeToggle />
-                <span className="text-sm opacity-70">Not signed in</span>
-              </>
-            )}
+            {/* RIGHT: user + theme + logout */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {user ? (
+                <>
+                  <span className="hidden sm:block text-sm opacity-70 whitespace-nowrap">
+                    {user.email}
+                  </span>
+
+                  <ThemeToggle />
+
+                  <form action="/api/auth/logout" method="post">
+                    <button
+                      className="
+                        rounded-xl px-4 py-2 text-sm
+                        transition-colors duration-200
+                      "
+                      style={{
+                        border:
+                          '1px solid color-mix(in oklch, var(--color-foreground) 20%, transparent)',
+                        backgroundColor:
+                          'color-mix(in oklch, var(--color-background) 90%, var(--color-foreground) 10%)',
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <ThemeToggle />
+                  <span className="text-sm opacity-70">Not signed in</span>
+                </>
+              )}
+            </div>
           </header>
 
           {/* SCROLL AREA */}
