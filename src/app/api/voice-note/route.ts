@@ -37,13 +37,11 @@ export async function POST(req: Request) {
     );
   }
 
-  // Build date YYYY-MM-DD
+  // Build date YYYY-MM-DD in *your* timezone (Halifax)
   const now = new Date();
-  const dateKey = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
+  const dateKey = now.toLocaleDateString('en-CA', {
+    timeZone: 'America/Halifax', // Nova Scotia time
+  });
 
   const supabase = await supabaseServer();
 
