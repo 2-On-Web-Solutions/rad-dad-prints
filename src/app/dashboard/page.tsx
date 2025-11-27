@@ -126,31 +126,18 @@ export default async function DashboardHome() {
   // SIGNED IN → OVERVIEW DASHBOARD
   // -------------------------
 
-  // Date helpers for agenda + analytics (LOCAL date, not UTC ISO)
-  const today = new Date();
+  // Date helpers for agenda + analytics using Halifax local date (not UTC)
+  const getHalifaxDateKey = (offsetDays = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    return d.toLocaleDateString('en-CA', {
+      timeZone: 'America/Halifax',
+    }); // YYYY-MM-DD
+  };
 
-  const todayKey = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
-  ].join('-'); // YYYY-MM-DD
-
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  const yesterdayKey = [
-    yesterday.getFullYear(),
-    String(yesterday.getMonth() + 1).padStart(2, '0'),
-    String(yesterday.getDate()).padStart(2, '0'),
-  ].join('-');
-
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 6); // inclusive 7-day window
-
-  const weekStartKey = [
-    sevenDaysAgo.getFullYear(),
-    String(sevenDaysAgo.getMonth() + 1).padStart(2, '0'),
-    String(sevenDaysAgo.getDate()).padStart(2, '0'),
-  ].join('-');
+  const todayKey = getHalifaxDateKey(0);
+  const yesterdayKey = getHalifaxDateKey(-1);
+  const weekStartKey = getHalifaxDateKey(-6); // inclusive 7-day window
 
   // Real data: counts from Supabase
   const [
