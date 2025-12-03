@@ -55,6 +55,14 @@
   /* hero gradient (used in nav hover + <hr>) */
   --hero-grad-from: #13e3ff;
   --hero-grad-to:   #6d44ff;
+
+  /* ======================================================
+     NEW — Dynamic Theme Colors (Updated via ThemeSettings)
+     ====================================================== */
+  --ipm-accent-solid: #432389;   /* default solid */
+  --ipm-accent-from:  #13c8df;   /* default gradient start */
+  --ipm-accent-to:    #6d44af;   /* default gradient end */
+  --ipm-accent-glow:  rgba(19,200,223,0.45); /* default glow */
 }
 
 /* dark theme */
@@ -68,11 +76,9 @@ html.dark {
    =================================== */
 html {
   scroll-behavior: smooth;
-  /* NEW: prevent layout shift when a vertical scrollbar appears */
-  scrollbar-gutter: stable; /* modern */
+  scrollbar-gutter: stable;
 }
 @supports not (scrollbar-gutter: stable) {
-  /* NEW: fallback for older engines */
   body { overflow-y: scroll; }
 }
 
@@ -84,10 +90,9 @@ body {
   overflow-x: hidden;
 }
 
-/* optional font utility */
 .font-dancing { font-family: 'Dancing Script', cursive; }
 
-/* anchor offsets so sections don't hide under the header */
+/* anchor offsets */
 #print-designs    { scroll-margin-top: 22rem; }
 #bundles-packages { scroll-margin-top: 22rem; }
 #services         { scroll-margin-top: 5rem; }
@@ -140,7 +145,6 @@ body {
   padding: .25rem .25rem;
   border-radius: .25rem;
   transition: color .2s ease, background .2s ease;
-  /* NEW: normalize alignment across <a> and <button> */
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
@@ -156,12 +160,17 @@ body {
   -webkit-text-fill-color: transparent;
   outline: none;
 }
-/* NEW: remove default button styling so “Gallery” sits flush */
 button.rdp-navlink {
   appearance: none;
   background: transparent;
   border: 0;
   padding: 0;
+}
+
+:root {
+  --hero-grad-from: #13c8df;
+  --hero-grad-to: #6d44af;
+  --hero-glow: rgba(19, 200, 223, 0.45); /* teal glow */
 }
 
 /* gradient HR helpers */
@@ -188,7 +197,6 @@ button.rdp-navlink {
   pointer-events: none;
 }
 
-/* reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .rdp-navlink { transition: none !important; }
 }

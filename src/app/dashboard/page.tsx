@@ -335,8 +335,8 @@ export default async function DashboardHome() {
       (row.category_id && designCatMap.get(row.category_id)) ||
       row.category_id ||
       'Uncategorized',
-    // views/orders are placeholders until we wire real per-design analytics
-    views: '—' as string | number,
+    // TEMP: use file count as a stand-in for “views” until we add real analytics
+    views: row.design_files?.[0]?.count ?? 0,
     orders: row.design_files?.[0]?.count ?? 0,
   }));
 
@@ -398,6 +398,7 @@ export default async function DashboardHome() {
       id: key,
       label,
       count: jobsForStage.length,
+      // keep at most 3 per stage; Completed will therefore be the 3 most recent
       items: jobsForStage.slice(0, 3).map((job) => {
         const main = job.topic || job.name || 'Job';
         return main.length > 40 ? `${main.slice(0, 37)}…` : main;
@@ -406,22 +407,9 @@ export default async function DashboardHome() {
     };
   });
 
+  // Updated: remove Leads + Paused, keep Overdue stub
   const pipelineStages = [
     ...topPipelineStages,
-    {
-      id: 'leads',
-      label: 'Leads',
-      count: 0,
-      items: [] as string[],
-      connected: false as const,
-    },
-    {
-      id: 'paused',
-      label: 'Paused',
-      count: 0,
-      items: [] as string[],
-      connected: false as const,
-    },
     {
       id: 'overdue',
       label: 'Overdue',
@@ -528,7 +516,7 @@ export default async function DashboardHome() {
           />
         </div>
 
-        {/* Pipeline – 6 cards, 3×2 layout, all same size & height */}
+        {/* Pipeline – Pending & Working full-height, Completed/Overdue stacked */}
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3 h-[300px]">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
@@ -546,7 +534,11 @@ export default async function DashboardHome() {
             {pipelineStages.map((stage) => (
               <div
                 key={stage.id}
-                className="rounded-lg border border-white/8 bg-black/25 px-3 py-3 flex flex-col"
+                className={`rounded-lg border border-white/8 bg-black/25 px-3 py-3 flex flex-col ${
+                  stage.id === 'pending' || stage.id === 'working'
+                    ? 'row-span-2'
+                    : ''
+                }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="font-medium truncate">{stage.label}</span>
@@ -564,20 +556,15 @@ export default async function DashboardHome() {
                     </p>
                   ) : (
                     <ul className="opacity-70 mt-1 space-y-0.5">
-                      {stage.items.slice(0, 2).map((i, idx) => (
+                      {stage.items.map((i, idx) => (
                         <li key={`${stage.id}-${idx}`} className="truncate">
                           • {i}
                         </li>
                       ))}
-                      {stage.items.length > 2 && (
-                        <li className="italic text-[0.7rem]">
-                          + {stage.items.length - 2} more…
-                        </li>
-                      )}
                     </ul>
                   )
                 ) : (
-                  // bottom row: just keep the title, nothing else
+                  // non-connected (Overdue): title only for now
                   <div className="flex-1" />
                 )}
               </div>
@@ -612,7 +599,7 @@ export default async function DashboardHome() {
                 </div>
                 <div className="text-right text-[0.75rem] opacity-70">
                   👁 {d.views} <br />
-                  🛒 {d.orders}
+                  📎 {d.orders}
                 </div>
               </div>
             ))}
@@ -650,7 +637,7 @@ export default async function DashboardHome() {
                 </div>
                 <div className="text-right text-[0.75rem] opacity-70">
                   👁 {b.views} <br />
-                  🛒 {b.orders}
+                  📎 {b.orders}
                 </div>
               </div>
             ))}

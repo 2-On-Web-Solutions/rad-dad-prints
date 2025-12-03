@@ -2,15 +2,85 @@
 
 import { useEffect, useState } from 'react';
 import { FaBars } from 'react-icons/fa';
+import { FaFacebook, FaInstagram, FaTiktok, FaXTwitter } from 'react-icons/fa6';
 import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
+import { supabaseBrowser } from '@/lib/supabase/client';
+
+const FALLBACK_LINKS = [
+  { id: 'facebook', url: 'https://www.facebook.com', enabled: true },
+  { id: 'instagram', url: 'https://www.instagram.com', enabled: true },
+  { id: 'tiktok', url: 'https://www.tiktok.com', enabled: true },
+  { id: 'x', url: 'https://x.com', enabled: true },
+];
+
+const ICONS = {
+  facebook: FaFacebook,
+  instagram: FaInstagram,
+  tiktok: FaTiktok,
+  x: FaXTwitter,
+};
+
+function hoverClass(id) {
+  switch (id) {
+    case 'facebook':
+      return 'hover:text-blue-500';
+    case 'instagram':
+      return 'hover:text-pink-500';
+    case 'tiktok':
+      return 'hover:text-gray-400';
+    case 'x':
+      return 'hover:text-slate-300';
+    default:
+      return '';
+  }
+}
 
 export default function Header({ onContact, onOpenGallery }) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [links, setLinks] = useState(FALLBACK_LINKS);
 
   useEffect(() => setMounted(true), []);
+
+  // load social links from Supabase
+  useEffect(() => {
+    async function loadLinks() {
+      try {
+        const { data, error } = await supabaseBrowser
+          .from('site_social_links')
+          .select('id,url,enabled,sort_order')
+          .order('sort_order', { ascending: true });
+
+        if (error) {
+          console.error('Header social links error', error);
+          return;
+        }
+
+        if (!data || data.length === 0) return;
+
+        const mapped = data
+          .filter((row) => row.url && typeof row.id === 'string')
+          .map((row) => ({
+            id: row.id,
+            url: row.url,
+            enabled: !!row.enabled,
+          }));
+
+        if (mapped.length > 0) {
+          setLinks(mapped);
+        }
+      } catch (err) {
+        console.error('Header social links load error', err);
+      }
+    }
+
+    loadLinks();
+  }, []);
+
   if (!mounted) return null;
+
+  const activeLinks = links.filter((l) => l.enabled && l.url);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -18,14 +88,14 @@ export default function Header({ onContact, onOpenGallery }) {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full bg-neutral-800 text-white py-4 px-4 sm:py-6 sm:px-8 lg:px-16 z-50 shadow-md overflow-visible">
+    <header className="fixed top-0 left-0 w-full bg-neutral-800 text-white py-3 px-4 sm:py-4 sm:px-8 lg:px-16 z-50 shadow-md overflow-visible">
       {/* Positioning context for dropdown */}
       <div
         className="rdp-header relative max-w-7xl mx-auto"
         style={{
           '--logo-left': '-300px',
-          '--logo-top': '225%',
-          '--logo-width': '300px',
+          '--logo-top': '185%', // moved up slightly from 225%
+          '--logo-width': '280px',
         }}
       >
         {/* Floating desktop logo (hidden on small screens) */}
@@ -50,7 +120,7 @@ export default function Header({ onContact, onOpenGallery }) {
         <nav
           className="
             max-w-7xl mx-auto flex flex-col sm:flex-row flex-wrap items-center w-full
-            gap-x-4 sm:gap-x-10 gap-y-1 sm:gap-y-2
+            gap-x-4 sm:gap-x-10 gap-y-0.5 sm:gap-y-1
             relative
             md:pb-0 md:-mb-2 md:gap-y-0
           "
@@ -111,7 +181,7 @@ export default function Header({ onContact, onOpenGallery }) {
           {/* ===== Desktop Inline Links ===== */}
           <ul
             data-nav="desktop-links"
-            className={`rdp-links flex-col lg:flex-row gap-4 lg:gap-10 xl:gap-20 2xl:gap-40
+            className={`rdp-links flex-col lg:flex-row gap-4 lg:gap-10 xl:gap-20 2xl:gap-40 2xl:-mr-6
                         text-center text-lg font-semibold tracking-wide transition-all duration-300
                         ${isOpen ? 'flex' : 'hidden'} md:hidden lg:flex
                         lg:mx-auto`}
@@ -132,37 +202,73 @@ export default function Header({ onContact, onOpenGallery }) {
               </a>
             </li>
             <li>
-              <button onClick={onOpenGallery} className="rdp-navlink transition py-1 whitespace-nowrap">
+              <button
+                onClick={onOpenGallery}
+                className="rdp-navlink transition py-1 whitespace-nowrap"
+              >
                 Gallery
               </button>
             </li>
           </ul>
 
-          {/* ===== Right: Theme + Contact ===== */}
+          {/* ===== Right: Theme + Contact (top) + Socials (bottom) ===== */}
           <div
             className="
               rdp-tools
-              flex gap-4 justify-center sm:justify-end items-center
-              mt-3 -mb-2 sm:mt-0
-              md:-mt-1 md:mb-0 md:ml-auto
-              lg:mr-4 xl:mr-8 2xl:-mr-70
+              flex flex-col items-end justify-center
+              gap-1
+              mt-4 -mb-3 sm:mt-0
+              md:-mt-4 md:mb-0 md:ml-auto
+              lg:mr-4 xl:mr-8 2xl:-mr-74
             "
           >
-            <div className="scale-75 sm:scale-100 origin-center">
-              <ThemeToggle />
+            {/* Top row: smaller toggle + contact inline */}
+            <div className="flex items-center">
+              <div className="animated-link-wrapper scale-75 sm:scale-75 mt-1 -mr-3 origin-center">
+                <div className="animated-link-effect-2">
+                  <div />
+                </div>
+                <button
+                  onClick={() => onContact?.()}
+                  className="animated-link-2 text-xs sm:text-sm"
+                >
+                  Contact
+                </button>
+              </div>
+              <div className="scale-75 sm:scale-80 -mr-3 origin-center">
+                <ThemeToggle />
+              </div>
             </div>
-            <div className="animated-link-wrapper">
-              <div className="animated-link-effect-2"><div /></div>
-              <button
-                onClick={() => onContact?.()}
-                className="animated-link-2 text-sm sm:text-base"
-              >
-                Contact
-              </button>
-            </div>
+
+            {/* Bottom row: Follow us + socials */}
+            {activeLinks.length > 0 && (
+              <div className="flex items-center -mt-1 mr-1 gap-4 text-[13px] whitespace-nowrap">
+                <span className="opacity-70">Follow us on:</span>
+                <div className="flex items-center gap-2 text-sm mr-4 sm:text-base">
+                  {activeLinks.map((link) => {
+                    const Icon = ICONS[link.id];
+                    if (!Icon) return null;
+                    return (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={link.id}
+                        className={`transition-transform transform hover:scale-110 ${hoverClass(
+                          link.id
+                        )}`}
+                      >
+                        <Icon />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* ===== Tablet Dropdown — in-flow, expands header height ===== */}
+          {/* ===== Tablet Dropdown ===== */}
           <div
             id="tablet-dropdown"
             data-nav="tablet-dd"
@@ -201,7 +307,10 @@ export default function Header({ onContact, onOpenGallery }) {
               </li>
               <li>
                 <button
-                  onClick={() => { setIsOpen(false); onOpenGallery?.(); }}
+                  onClick={() => {
+                    setIsOpen(false);
+                    onOpenGallery?.();
+                  }}
                   className="rdp-navlink py-1 whitespace-nowrap"
                 >
                   Gallery

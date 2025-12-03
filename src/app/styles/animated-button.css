@@ -3,6 +3,7 @@
     display: inline-block;
 }
 
+/* Variant 1 – dark button, theme ring */
 .animated-link {
     box-sizing: border-box;
     display: flex;
@@ -20,7 +21,7 @@
     background: #1b1b1b;
     color: #ffffff;
 }
-  
+
 .animated-link-effect {
     pointer-events: none;
     border-radius: 6px;
@@ -34,30 +35,35 @@
     mask-composite: exclude;
     -webkit-mask-composite: xor;
 }
-  
+
 .animated-link-effect div {
-    background-image: conic-gradient(from 0 at 50% 50%, rgba(89, 52, 177) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgba(89, 52, 177) 360deg);
+    /* 🔁 now uses theme gradient vars */
+    background-image: conic-gradient(
+        from 0deg at 50% 50%,
+        var(--hero-grad-from) 0deg,
+        transparent 60deg,
+        transparent 300deg,
+        var(--hero-grad-to) 360deg
+    );
     position: relative;
     left: 50%;
     top: 50%;
-    -webkit-transform: translate(-50%, -50%);
-    -moz-transform: translate(-50%, -50%);
-    -ms-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
     width: 100%;
     animation: rotate 2s linear infinite;
     aspect-ratio: 1;
 }
-  
+
 @keyframes rotate {
     from {
-      transform: translate(-50%, -50%) scale(1.4) rotate(0turn);
+        transform: translate(-50%, -50%) scale(1.4) rotate(0turn);
     }
     to {
-      transform: translate(-50%, -50%) scale(1.4) rotate(1turn);
+        transform: translate(-50%, -50%) scale(1.4) rotate(1turn);
     }
 }
 
+/* Variant 2 – slightly different base, same theme ring */
 .animated-link-2 {
     box-sizing: border-box;
     display: flex;
@@ -91,13 +97,17 @@
 }
 
 .animated-link-effect-2 div {
-    background-image: conic-gradient(from 0 at 50% 50%, rgb(121, 74, 231) 0deg, rgba(255, 255, 255, 0) 60deg, rgba(255, 255, 255, 0) 310deg, rgb(74, 207, 231) 360deg);
+    /* 🔁 also driven by theme, but we flip the direction for variety */
+    background-image: conic-gradient(
+        from 0deg at 50% 50%,
+        var(--hero-grad-to) 0deg,
+        transparent 60deg,
+        transparent 300deg,
+        var(--hero-grad-from) 360deg
+    );
     position: relative;
     left: 50%;
     top: 50%;
-    -webkit-transform: translate(-50%, -50%);
-    -moz-transform: translate(-50%, -50%);
-    -ms-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
     width: 100%;
     animation: rotate 2s linear infinite;
